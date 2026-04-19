@@ -1,0 +1,684 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Link, useParams } from "@tanstack/react-router";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Circle,
+  Clock,
+  Download,
+  MapPin,
+  Package,
+  RefreshCw,
+  Truck,
+  Wallet,
+  XCircle,
+} from "lucide-react";
+import { motion } from "motion/react";
+import { toast } from "sonner";
+import type { OrderStatus } from "../backend.d.ts";
+import { LoadingSpinner } from "../components/LoadingSpinner";
+import { useAuth } from "../hooks/use-auth";
+import { useLanguage } from "../hooks/use-language";
+import {
+  useCancelOrder,
+  useDownloadInvoice,
+  useGetOrder,
+  useUpdateOrderStatus,
+} from "../hooks/useQueries";
+import { formatPrice } from "../lib/i18n";
+
+type StatusConfig = {
+  label: string;
+  labelBn: string;
+  className: string;
+  dotClass: string;
+};
+
+const STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
+  processing: {
+    label: "Processing",
+    labelBn: "প্রক্রিয়া চলছে",
+    className:
+      "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/40",
+    dotClass: "bg-blue-500",
+  },
+  shipped: {
+    label: "Shipped",
+    labelBn: "পাঠানো হয়েছে",
+    className:
+      "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/40",
+    dotClass: "bg-purple-500",
+  },
+  delivered: {
+    label: "Delivered",
+    labelBn: "পৌঁছে গেছে",
+    className:
+      "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40",
+    dotClass: "bg-emerald-500",
+  },
+  cancelled: {
+    label: "Cancelled",
+    labelBn: "বাতিল",
+    className: "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/40",
+    dotClass: "bg-red-500",
+  },
+  refundRequested: {
+    label: "Refund Requested",
+    labelBn: "ফেরত চাওয়া হয়েছে",
+    className:
+      "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40",
+    dotClass: "bg-amber-500",
+  },
+  refunded: {
+    label: "Refunded",
+    labelBn: "ফেরত দেওয়া হয়েছে",
+    className: "bg-muted text-muted-foreground border-border",
+    dotClass: "bg-muted-foreground",
+  },
+};
+
+type TimelineStep = {
+  status: OrderStatus;
+  icon: typeof CheckCircle2;
+  en: string;
+  bn: string;
+};
+
+const TIMELINE: TimelineStep[] = [
+  {
+    status: "processing" as OrderStatus,
+    icon: Package,
+    en: "Order Placed",
+    bn: "অর্ডার দেওয়া হয়েছে",
+  },
+  {
+    status: "shipped" as OrderStatus,
+    icon: Truck,
+    en: "Shipped",
+    bn: "পাঠানো হয়েছে",
+  },
+  {
+    status: "delivered" as OrderStatus,
+    icon: CheckCircle2,
+    en: "Delivered",
+    bn: "পৌঁছে গেছে",
+  },
+];
+
+const STATUS_ORDER: Record<string, number> = {
+  processing: 0,
+  shipped: 1,
+  delivered: 2,
+};
+
+export default function OrderDetailPage() {
+  const { id } = useParams({ from: "/orders/$id" });
+  const { t, lang } = useLanguage();
+  const { isAuthenticated } = useAuth();
+  const orderId = BigInt(id);
+  const { data: order, isLoading } = useGetOrder(orderId);
+  const { mutate: downloadInvoice, isPending: isDownloading } =
+    useDownloadInvoice();
+  const { mutate: cancelOrder, isPending: isCancelling } = useCancelOrder();
+  const { mutate: updateStatus, isPending: isRefundPending } =
+    useUpdateOrderStatus();
+
+  const handleDownloadInvoice = () => {
+    downloadInvoice(orderId, {
+      onSuccess: (data) => {
+        const blob = new Blob([data], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `invoice-${id}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success("Invoice downloaded!");
+      },
+      onError: () => toast.error("Failed to download invoice"),
+    });
+  };
+
+  const handleCancelOrder = () => {
+    cancelOrder(orderId, {
+      onSuccess: () =>
+        toast.success(
+          lang === "bn" ? "অর্ডার বাতিল করা হয়েছে" : "Order cancelled successfully",
+        ),
+      onError: () =>
+        toast.error(
+          lang === "bn" ? "অর্ডার বাতিল করতে ব্যর্থ" : "Failed to cancel order",
+        ),
+    });
+  };
+
+  const handleRefundRequest = () => {
+    updateStatus(
+      {
+        orderId,
+        status: "refundRequested" as OrderStatus,
+        note: "Refund requested by customer",
+      },
+      {
+        onSuccess: () =>
+          toast.success(
+            lang === "bn" ? "ফেরতের অনুরোধ সম্পন্ন" : "Refund request submitted",
+          ),
+        onError: () =>
+          toast.error(
+            lang === "bn" ? "ফেরতের অনুরোধ ব্যর্থ" : "Failed to request refund",
+          ),
+      },
+    );
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div
+        className="max-w-3xl mx-auto px-4 py-16 text-center"
+        data-ocid="order_detail.login_required"
+      >
+        <p className="text-muted-foreground">{t("signInDesc")}</p>
+        <Link
+          to="/orders"
+          className="text-accent hover:underline text-sm mt-2 inline-block"
+        >
+          {t("back")}
+        </Link>
+      </div>
+    );
+  }
+
+  if (isLoading) return <LoadingSpinner text={t("loading")} />;
+
+  if (!order) {
+    return (
+      <div
+        className="max-w-3xl mx-auto px-4 py-16 flex flex-col items-center gap-3"
+        data-ocid="order_detail.error_state"
+      >
+        <Package size={52} className="text-muted-foreground/30" />
+        <p className="text-foreground font-semibold">Order not found</p>
+        <Link
+          to="/orders"
+          data-ocid="order_detail.back_link"
+          className="text-accent hover:underline text-sm"
+        >
+          ← {t("back")}
+        </Link>
+      </div>
+    );
+  }
+
+  const cfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.processing;
+  const currentStepIdx = STATUS_ORDER[order.status] ?? -1;
+  const isActiveOrder = !["cancelled", "refundRequested", "refunded"].includes(
+    order.status,
+  );
+  const canCancel = order.status === ("processing" as OrderStatus);
+  const canRefund = order.status === ("delivered" as OrderStatus);
+  const orderDate = new Date(Number(order.createdAt) / 1_000_000);
+
+  return (
+    <div className="bg-muted/20 min-h-screen" data-ocid="order_detail.page">
+      <div className="max-w-3xl mx-auto px-4 py-6 sm:py-10 space-y-4">
+        {/* ── Page header ─────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card-elevation p-5"
+        >
+          <div className="flex items-start gap-3">
+            <Link
+              to="/orders"
+              data-ocid="order_detail.back_link"
+              className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-accent mt-0.5"
+              aria-label="Back to orders"
+            >
+              <ArrowLeft size={18} />
+            </Link>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-xl font-display font-bold text-foreground tracking-tight">
+                  {lang === "bn" ? "অর্ডার" : "Order"}
+                </h1>
+                <span className="font-mono text-accent text-base font-bold">
+                  #{id}
+                </span>
+                {/* Status pill */}
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${cfg.className}`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${cfg.dotClass}`}
+                  />
+                  {lang === "bn" ? cfg.labelBn : cfg.label}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
+                <Clock size={13} />
+                {orderDate.toLocaleDateString(
+                  lang === "bn" ? "bn-IN" : "en-IN",
+                  {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  },
+                )}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDownloadInvoice}
+              disabled={isDownloading}
+              data-ocid="order_detail.download_invoice_button"
+              className="btn-secondary text-xs px-3 py-2 h-auto shrink-0 hidden sm:flex items-center gap-1.5"
+            >
+              <Download size={13} />
+              {isDownloading
+                ? lang === "bn"
+                  ? "ডাউনলোড..."
+                  : "Downloading..."
+                : lang === "bn"
+                  ? "ইনভয়েস"
+                  : "Invoice"}
+            </Button>
+          </div>
+        </motion.div>
+
+        {/* ── Tracking timeline ───────────────────────── */}
+        {isActiveOrder && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.07 }}
+            className="card-elevation p-5"
+            data-ocid="order_detail.timeline"
+          >
+            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-6">
+              {lang === "bn" ? "ডেলিভারি স্ট্যাটাস" : "Delivery Status"}
+            </h2>
+            <div className="relative">
+              {/* connector line */}
+              <div className="absolute top-4 left-4 right-4 h-0.5 bg-border" />
+              <div
+                className="absolute top-4 left-4 h-0.5 bg-accent transition-all duration-700"
+                style={{
+                  width:
+                    currentStepIdx < 0
+                      ? "0%"
+                      : `${(currentStepIdx / (TIMELINE.length - 1)) * 100}%`,
+                }}
+              />
+              <div className="relative flex justify-between">
+                {TIMELINE.map((step, i) => {
+                  const done = i < currentStepIdx;
+                  const active = i === currentStepIdx;
+                  const StepIcon = done
+                    ? CheckCircle2
+                    : active
+                      ? step.icon
+                      : Circle;
+                  return (
+                    <div
+                      key={step.status}
+                      className="flex flex-col items-center gap-2"
+                    >
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center z-10 transition-all duration-300 ${
+                          done
+                            ? "bg-accent text-accent-foreground shadow-elevated"
+                            : active
+                              ? "bg-accent text-accent-foreground ring-4 ring-accent/25 shadow-elevated"
+                              : "bg-card border-2 border-border text-muted-foreground"
+                        }`}
+                      >
+                        <StepIcon size={16} />
+                      </div>
+                      <div className="text-center">
+                        <p
+                          className={`text-xs font-semibold ${
+                            active
+                              ? "text-accent"
+                              : done
+                                ? "text-foreground"
+                                : "text-muted-foreground"
+                          }`}
+                        >
+                          {lang === "bn" ? step.bn : step.en}
+                        </p>
+                        {active && (
+                          <p className="text-[10px] text-accent/70 mt-0.5">
+                            {lang === "bn" ? "বর্তমান" : "Current"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Items breakdown ─────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 }}
+          className="card-elevation overflow-hidden"
+          data-ocid="order_detail.items"
+        >
+          <div className="px-5 py-3 border-b border-border bg-muted/30 flex items-center gap-2">
+            <Package size={15} className="text-accent" />
+            <h2 className="text-sm font-bold text-foreground">
+              {order.items.length}{" "}
+              {lang === "bn"
+                ? "টি বই"
+                : order.items.length === 1
+                  ? "Item"
+                  : "Items"}
+            </h2>
+          </div>
+          <div className="divide-y divide-border">
+            {order.items.map((item, idx) => (
+              <div
+                key={item.productId.toString()}
+                className="flex items-start gap-4 px-5 py-4 hover:bg-muted/20 transition-colors group"
+                data-ocid={`order_detail.item.${idx + 1}`}
+              >
+                <Link
+                  to="/product/$id"
+                  params={{ id: item.productId.toString() }}
+                  className="shrink-0 w-14 rounded-lg bg-primary/10 border border-border overflow-hidden flex items-center justify-center hover:opacity-80 transition-opacity"
+                  style={{ height: "72px" }}
+                >
+                  <span className="text-2xl">📚</span>
+                </Link>
+                <div className="flex-1 min-w-0">
+                  <Link
+                    to="/product/$id"
+                    params={{ id: item.productId.toString() }}
+                    className="text-sm font-semibold text-foreground hover:text-accent transition-colors line-clamp-2 leading-snug"
+                  >
+                    {item.titleEn}
+                  </Link>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {lang === "bn" ? "পরিমাণ" : "Qty"}: {Number(item.quantity)}{" "}
+                    <span className="mx-1">·</span>
+                    {formatPrice(item.priceInPaisa)}{" "}
+                    {lang === "bn" ? "প্রতিটি" : "each"}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-bold font-mono text-accent">
+                    {formatPrice(
+                      BigInt(Number(item.priceInPaisa) * Number(item.quantity)),
+                    )}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* ── Price summary + Shipping side-by-side on md+ ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Price summary */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.16 }}
+            className="card-elevation p-5"
+            data-ocid="order_detail.price_summary"
+          >
+            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">
+              {lang === "bn" ? "মূল্য বিবরণ" : "Price Details"}
+            </h2>
+            <div className="space-y-2.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  {t("subtotal")} ({order.items.length})
+                </span>
+                <span className="font-medium">
+                  {formatPrice(order.totalInPaisa + order.discountInPaisa)}
+                </span>
+              </div>
+              {order.promoCodeApplied && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                  <span>
+                    {lang === "bn" ? "ছাড়" : "Promo"}:{" "}
+                    <span className="font-mono text-xs">
+                      {order.promoCodeApplied}
+                    </span>
+                  </span>
+                  <span>−{formatPrice(order.discountInPaisa)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("delivery")}</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                  FREE
+                </span>
+              </div>
+            </div>
+            <Separator className="my-3" />
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-base">{t("total")}</span>
+              <span className="text-lg font-bold font-mono text-accent">
+                {formatPrice(order.totalInPaisa)}
+              </span>
+            </div>
+          </motion.div>
+
+          {/* Shipping address */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="card-elevation p-5 space-y-3"
+            data-ocid="order_detail.shipping_address"
+          >
+            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              {lang === "bn" ? "ডেলিভারি ঠিকানা" : "Delivery Address"}
+            </h2>
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-accent/15 flex items-center justify-center shrink-0 mt-0.5">
+                <MapPin size={16} className="text-accent" />
+              </div>
+              <div className="text-sm space-y-0.5 min-w-0">
+                <p className="font-semibold text-foreground">
+                  {order.shippingAddress.fullName}
+                </p>
+                <p className="text-muted-foreground">
+                  {order.shippingAddress.line1}
+                </p>
+                {order.shippingAddress.line2 && (
+                  <p className="text-muted-foreground">
+                    {order.shippingAddress.line2}
+                  </p>
+                )}
+                <p className="text-muted-foreground">
+                  {order.shippingAddress.city}, {order.shippingAddress.district}
+                </p>
+                <p className="text-muted-foreground">
+                  {order.shippingAddress.state} —{" "}
+                  {order.shippingAddress.pincode}
+                </p>
+                <p className="text-muted-foreground text-xs mt-1 flex items-center gap-1">
+                  📞 {order.shippingAddress.phone}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* ── Payment method ─────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.24 }}
+          className="card-elevation p-5"
+          data-ocid="order_detail.payment_method"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-accent/15 flex items-center justify-center shrink-0">
+              <Wallet size={16} className="text-accent" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">
+                {lang === "bn" ? "পেমেন্ট পদ্ধতি" : "Payment Method"}
+              </p>
+              <p className="text-sm font-semibold text-foreground mt-0.5">
+                {order.stripePaymentIntentId
+                  ? `Card · ****${order.stripePaymentIntentId.slice(-4).toUpperCase()}`
+                  : lang === "bn"
+                    ? "অনলাইন পেমেন্ট"
+                    : "Online Payment"}
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* ── Action buttons ─────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.28 }}
+          className="flex flex-col sm:flex-row gap-3"
+        >
+          {/* Download invoice (mobile visible) */}
+          <Button
+            type="button"
+            onClick={handleDownloadInvoice}
+            disabled={isDownloading}
+            data-ocid="order_detail.download_invoice_button"
+            className="sm:hidden btn-secondary flex items-center justify-center gap-2 h-11"
+          >
+            <Download size={15} />
+            {isDownloading
+              ? lang === "bn"
+                ? "ডাউনলোড হচ্ছে..."
+                : "Downloading..."
+              : t("downloadInvoice")}
+          </Button>
+
+          {canCancel && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-ocid="order_detail.cancel_order_button"
+                  className="flex-1 h-11 rounded-lg border-red-500/50 text-red-600 dark:text-red-400 hover:bg-red-500/10 font-semibold gap-2"
+                >
+                  <XCircle size={15} />
+                  {lang === "bn" ? "অর্ডার বাতিল করুন" : "Cancel Order"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent
+                data-ocid="order_detail.cancel_dialog"
+                className="rounded-xl"
+              >
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {lang === "bn" ? "অর্ডার বাতিল করবেন?" : "Cancel this order?"}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {lang === "bn"
+                      ? "এই অর্ডারটি বাতিল হয়ে যাবে। এই পদক্ষেপটি পূর্বাবস্থায় ফেরানো যাবে না।"
+                      : "This order will be permanently cancelled and cannot be undone."}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel data-ocid="order_detail.cancel_dialog_cancel_button">
+                    {lang === "bn" ? "না, রাখুন" : "Keep Order"}
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleCancelOrder}
+                    disabled={isCancelling}
+                    data-ocid="order_detail.cancel_dialog_confirm_button"
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {isCancelling
+                      ? lang === "bn"
+                        ? "বাতিল হচ্ছে..."
+                        : "Cancelling..."
+                      : lang === "bn"
+                        ? "হ্যাঁ, বাতিল করুন"
+                        : "Yes, Cancel"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+
+          {canRefund && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-ocid="order_detail.refund_button"
+                  className="flex-1 h-11 rounded-lg border-amber-500/50 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 font-semibold gap-2"
+                >
+                  <RefreshCw size={15} />
+                  {lang === "bn" ? "ফেরত চাইুন" : "Request Refund"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent
+                data-ocid="order_detail.refund_dialog"
+                className="rounded-xl"
+              >
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {lang === "bn" ? "ফেরত চাইবেন?" : "Request a refund?"}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {lang === "bn"
+                      ? "আপনি কি এই অর্ডারের জন্য ফেরত চাইতে চান?"
+                      : "Are you sure you want to request a refund for this order?"}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel data-ocid="order_detail.refund_dialog_cancel_button">
+                    {lang === "bn" ? "না" : "Cancel"}
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleRefundRequest}
+                    disabled={isRefundPending}
+                    data-ocid="order_detail.refund_dialog_confirm_button"
+                    className="cta-primary"
+                  >
+                    {isRefundPending
+                      ? lang === "bn"
+                        ? "পাঠানো হচ্ছে..."
+                        : "Submitting..."
+                      : lang === "bn"
+                        ? "হ্যাঁ, ফেরত চাই"
+                        : "Yes, Request Refund"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </motion.div>
+      </div>
+    </div>
+  );
+}

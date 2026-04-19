@@ -1,0 +1,308 @@
+// Version: 1.0.0
+type AddressId__345838458 = Nat;
+type Address__114457332 =
+  {
+    city : Text;
+    createdAt : Timestamp__301639476;
+    district : Text;
+    fullName : Text;
+    id : AddressId__345838458;
+    isDefault : Bool;
+    line1 : Text;
+    line2 : Text;
+    phone : Text;
+    pincode : Text;
+    state : Text;
+    userId : UserId__158757552
+  };
+type AnswerId__847472744 = Nat;
+type AnswerInternal__972653366 =
+  {
+    answerText : Text;
+    answeredBy : UserId__158757552;
+    createdAt : Timestamp__301639476;
+    helpfulVoters : Set__532252804<UserId__158757552>;
+    helpfulVotes : Nat;
+    id : AnswerId__847472744;
+    questionId : QuestionId__77764146
+  };
+type CartItem__1044444615 =
+  {
+    addedAt : Timestamp__301639476;
+    priceSnapshotInPaisa : Nat;
+    productId : ProductId__160010635;
+    quantity : Nat
+  };
+type Data__159895909<T> = {var count : Nat__490723111; elements : [var ?T]};
+type Data__791452850<K, V> =
+  {var count : Nat__490723111; kvs : [var ?(K, V)]};
+type FlashSaleId__219302441 = Nat;
+type FlashSaleItem__1047350365 =
+  {
+    discountPercent : Nat;
+    discountedPriceInPaisa : Nat;
+    originalPriceInPaisa : Nat;
+    productId : ProductId__160010635;
+    quantityLimit : ?Nat;
+    soldCount : Nat
+  };
+type FlashSale__192530270 =
+  {
+    createdAt : Timestamp__301639476;
+    endTime : Timestamp__301639476;
+    id : FlashSaleId__219302441;
+    isActive : Bool;
+    items : [FlashSaleItem__1047350365];
+    startTime : Timestamp__301639476;
+    titleBn : Text;
+    titleEn : Text
+  };
+type Genre__1014956920 =
+  {
+    #academic;
+    #bengaliClassics;
+    #biography;
+    #childrens;
+    #fiction;
+    #history;
+    #nonFiction;
+    #other;
+    #poetry;
+    #religion;
+    #science
+  };
+type Internal__667636161<T> =
+  {children : [var ?Node__92254746<T>]; data : Data__159895909<T>};
+type Internal__8484328<K, V> =
+  {children : [var ?Node__46230540<K, V>]; data : Data__791452850<K, V>};
+type Language__859725429 = {#bengali; #bilingual; #english};
+type Leaf__520550824<T> = {data : Data__159895909<T>};
+type Leaf__809889148<K, V> = {data : Data__791452850<K, V>};
+type List__415060402<T> = List__790383201<T>;
+type List__790383201<T> =
+  {
+    var blockIndex : Nat__490723111;
+    var blocks : [var [var ?T]];
+    var elementIndex : Nat__490723111
+  };
+type Map__158565046<K, V> = Map__297112838<K, V>;
+type Map__297112838<K, V> =
+  {var root : Node__46230540<K, V>; var size : Nat__490723111};
+type Map__605269027<K, V> = Map__158565046<K, V>;
+type Nat__490723111 = Nat__920180692;
+type Nat__920180692 = Nat;
+type Node__46230540<K, V> =
+  {#internal : Internal__8484328<K, V>; #leaf : Leaf__809889148<K, V>};
+type Node__92254746<T> =
+  {#internal : Internal__667636161<T>; #leaf : Leaf__520550824<T>};
+type OrderId__197865225 = Nat;
+type OrderItem__970180480 =
+  {
+    priceInPaisa : Nat;
+    productId : ProductId__160010635;
+    quantity : Nat;
+    titleEn : Text
+  };
+type OrderStatus__591380551 =
+  {
+    #cancelled;
+    #delivered;
+    #processing;
+    #refundRequested;
+    #refunded;
+    #shipped
+  };
+type Order__720360493 =
+  {
+    createdAt : Timestamp__301639476;
+    discountInPaisa : Nat;
+    id : OrderId__197865225;
+    idempotencyKey : Text;
+    items : [OrderItem__970180480];
+    promoCodeApplied : ?Text;
+    shippingAddress : Address__114457332;
+    status : OrderStatus__591380551;
+    statusHistory : [StatusUpdate__305848552];
+    stripePaymentIntentId : Text;
+    totalInPaisa : Nat;
+    updatedAt : Timestamp__301639476;
+    userId : UserId__158757552
+  };
+type ProductId__160010635 = Nat;
+type ProductLabel__98146970 =
+  {
+    authorBn : Text;
+    authorEn : Text;
+    descriptionBn : Text;
+    descriptionEn : Text;
+    titleBn : Text;
+    titleEn : Text
+  };
+type Product__389207432 =
+  {
+    coverImageUrl : Text;
+    createdAt : Timestamp__301639476;
+    genre : Genre__1014956920;
+    id : ProductId__160010635;
+    info : ProductLabel__98146970;
+    isbn : Text;
+    language : Language__859725429;
+    priceInPaisa : Nat;
+    publicationDate : Timestamp__301639476;
+    publisher : Text;
+    reviewCount : Nat;
+    stockCount : Nat;
+    totalRatingScore : Nat;
+    updatedAt : Timestamp__301639476
+  };
+type PromoCodeId__696399225 = Nat;
+type PromoCode__597433591 =
+  {
+    code : Text;
+    createdAt : Timestamp__301639476;
+    discountPercent : Nat;
+    id : PromoCodeId__696399225;
+    isActive : Bool;
+    maxUsageCount : ?Nat;
+    minSpendInPaisa : Nat;
+    usageCount : Nat;
+    validFrom : Timestamp__301639476;
+    validUntil : Timestamp__301639476
+  };
+type QuestionId__77764146 = Nat;
+type Question__415208960 =
+  {
+    askedBy : UserId__158757552;
+    createdAt : Timestamp__301639476;
+    id : QuestionId__77764146;
+    productId : ProductId__160010635;
+    questionText : Text
+  };
+type ReviewId__496285678 = Nat;
+type ReviewInternal__542788455 =
+  {
+    bodyEn : Text;
+    createdAt : Timestamp__301639476;
+    helpfulVoters : Set__532252804<UserId__158757552>;
+    helpfulVotes : Nat;
+    id : ReviewId__496285678;
+    isVerifiedPurchase : Bool;
+    productId : ProductId__160010635;
+    rating : Nat;
+    titleEn : Text;
+    userId : UserId__158757552
+  };
+type Set__532252804<T> = Set__710576254<T>;
+type Set__710576254<T> =
+  {var root : Node__92254746<T>; var size : Nat__490723111};
+type StatusUpdate__305848552 =
+  {
+    note : Text;
+    status : OrderStatus__591380551;
+    updatedAt : Timestamp__301639476
+  };
+type StripeConfiguration__96897619 =
+  {allowedCountries : [Text]; secretKey : Text};
+type Timestamp__301639476 = Int;
+type UserId__158757552 = Principal;
+type UserProfile__1009003526 =
+  {
+    createdAt : Timestamp__301639476;
+    email : Text;
+    name : Text;
+    phone : Text;
+    preferredLanguage : {#bengali; #english}
+  };
+type UserRole__1054455867 = {#admin; #guest; #user};
+actor {
+  stable accessControlState :
+    {
+      var adminAssigned : Bool;
+      userRoles : Map__605269027<Principal, UserRole__1054455867>
+    };
+  stable addresses :
+    {
+      var root :
+        Node__46230540<UserId__158757552, List__415060402<Address__114457332>>;
+      var size : Nat__490723111
+    };
+  stable answers :
+    {
+      var root :
+        Node__46230540<AnswerId__847472744, AnswerInternal__972653366>;
+      var size : Nat__490723111
+    };
+  stable carts :
+    {
+      var root :
+        Node__46230540<UserId__158757552,
+                        List__415060402<CartItem__1044444615>>;
+      var size : Nat__490723111
+    };
+  stable flashSales :
+    {
+      var root : Node__46230540<FlashSaleId__219302441, FlashSale__192530270>;
+      var size : Nat__490723111
+    };
+  stable nextAddressId : [var Nat];
+  stable nextAnswerId : [var Nat];
+  stable nextFlashSaleId : [var Nat];
+  stable nextOrderId : [var Nat];
+  stable nextProductId : [var Nat];
+  stable nextPromoCodeId : [var Nat];
+  stable nextQuestionId : [var Nat];
+  stable nextReviewId : [var Nat];
+  stable orders :
+    {
+      var root : Node__46230540<OrderId__197865225, Order__720360493>;
+      var size : Nat__490723111
+    };
+  stable products :
+    {
+      var root : Node__46230540<ProductId__160010635, Product__389207432>;
+      var size : Nat__490723111
+    };
+  stable profiles :
+    {
+      var root : Node__46230540<UserId__158757552, UserProfile__1009003526>;
+      var size : Nat__490723111
+    };
+  stable promoCodes :
+    {
+      var root : Node__46230540<Text, PromoCode__597433591>;
+      var size : Nat__490723111
+    };
+  stable purchasedProductsByUser :
+    {
+      var root :
+        Node__46230540<UserId__158757552,
+                        Set__532252804<ProductId__160010635>>;
+      var size : Nat__490723111
+    };
+  stable questions :
+    {
+      var root : Node__46230540<QuestionId__77764146, Question__415208960>;
+      var size : Nat__490723111
+    };
+  stable recentlyViewed :
+    {
+      var root :
+        Node__46230540<UserId__158757552,
+                        List__415060402<ProductId__160010635>>;
+      var size : Nat__490723111
+    };
+  stable reviews :
+    {
+      var root :
+        Node__46230540<ReviewId__496285678, ReviewInternal__542788455>;
+      var size : Nat__490723111
+    };
+  stable var stripeConfiguration : ?StripeConfiguration__96897619;
+  stable wishlists :
+    {
+      var root :
+        Node__46230540<UserId__158757552,
+                        List__415060402<ProductId__160010635>>;
+      var size : Nat__490723111
+    }
+};

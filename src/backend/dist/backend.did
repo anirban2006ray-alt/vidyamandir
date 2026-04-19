@@ -1,0 +1,476 @@
+type http_request_result = 
+ record {
+   body: blob;
+   headers: vec http_header;
+   status: nat;
+ };
+type http_header = 
+ record {
+   name: text;
+   value: text;
+ };
+type UserRole = 
+ variant {
+   admin;
+   guest;
+   user;
+ };
+type UserProfile = 
+ record {
+   createdAt: Timestamp;
+   email: text;
+   name: text;
+   phone: text;
+   preferredLanguage: variant {
+                        bengali;
+                        english;
+                      };
+ };
+type UserId = principal;
+type UpdateProductInput = 
+ record {
+   coverImageUrl: opt text;
+   genre: opt Genre;
+   id: ProductId;
+   info: opt ProductLabel;
+   isbn: opt text;
+   language: opt Language;
+   priceInPaisa: opt nat;
+   publicationDate: opt Timestamp;
+   publisher: opt text;
+   stockCount: opt nat;
+ };
+type TransformationOutput = 
+ record {
+   body: blob;
+   headers: vec http_header;
+   status: nat;
+ };
+type TransformationInput = 
+ record {
+   context: blob;
+   response: http_request_result;
+ };
+type Timestamp = int;
+type StripeSessionStatus = 
+ variant {
+   completed: record {
+                response: text;
+                userPrincipal: opt text;
+              };
+   failed: record {error: text;};
+ };
+type StripeConfiguration = 
+ record {
+   allowedCountries: vec text;
+   secretKey: text;
+ };
+type StatusUpdate = 
+ record {
+   note: text;
+   status: OrderStatus;
+   updatedAt: Timestamp;
+ };
+type SortOrder = 
+ variant {
+   asc;
+   desc;
+ };
+type SortField = 
+ variant {
+   price;
+   publicationDate;
+   rating;
+   title;
+ };
+type ShoppingItem = 
+ record {
+   currency: text;
+   priceInCents: nat;
+   productDescription: text;
+   productName: text;
+   quantity: nat;
+ };
+type ReviewId = nat;
+type Review = 
+ record {
+   bodyEn: text;
+   createdAt: Timestamp;
+   helpfulVotes: nat;
+   id: ReviewId;
+   isVerifiedPurchase: bool;
+   productId: ProductId;
+   rating: nat;
+   titleEn: text;
+   userId: UserId;
+ };
+type QuestionId = nat;
+type Question = 
+ record {
+   askedBy: UserId;
+   createdAt: Timestamp;
+   id: QuestionId;
+   productId: ProductId;
+   questionText: text;
+ };
+type PromoCodeId = nat;
+type PromoCode = 
+ record {
+   code: text;
+   createdAt: Timestamp;
+   discountPercent: nat;
+   id: PromoCodeId;
+   isActive: bool;
+   maxUsageCount: opt nat;
+   minSpendInPaisa: nat;
+   usageCount: nat;
+   validFrom: Timestamp;
+   validUntil: Timestamp;
+ };
+type ProductView = 
+ record {
+   averageRating: float64;
+   coverImageUrl: text;
+   createdAt: Timestamp;
+   genre: Genre;
+   id: ProductId;
+   info: ProductLabel;
+   isbn: text;
+   language: Language;
+   priceInPaisa: nat;
+   publicationDate: Timestamp;
+   publisher: text;
+   reviewCount: nat;
+   stockCount: nat;
+ };
+type ProductSort = 
+ record {
+   field: SortField;
+   order: SortOrder;
+ };
+type ProductLabel = 
+ record {
+   authorBn: text;
+   authorEn: text;
+   descriptionBn: text;
+   descriptionEn: text;
+   titleBn: text;
+   titleEn: text;
+ };
+type ProductId = nat;
+type ProductFilter = 
+ record {
+   genre: opt Genre;
+   inStockOnly: bool;
+   language: opt Language;
+   maxPriceInPaisa: opt nat;
+   minPriceInPaisa: opt nat;
+   minRating: opt float64;
+   searchQuery: opt text;
+ };
+type OrderStatus = 
+ variant {
+   cancelled;
+   delivered;
+   processing;
+   refundRequested;
+   refunded;
+   shipped;
+ };
+type OrderItem = 
+ record {
+   priceInPaisa: nat;
+   productId: ProductId;
+   quantity: nat;
+   titleEn: text;
+ };
+type OrderId = nat;
+type Order = 
+ record {
+   createdAt: Timestamp;
+   discountInPaisa: nat;
+   id: OrderId;
+   idempotencyKey: text;
+   items: vec OrderItem;
+   promoCodeApplied: opt text;
+   shippingAddress: Address;
+   status: OrderStatus;
+   statusHistory: vec StatusUpdate;
+   stripePaymentIntentId: text;
+   totalInPaisa: nat;
+   updatedAt: Timestamp;
+   userId: UserId;
+ };
+type Language = 
+ variant {
+   bengali;
+   bilingual;
+   english;
+ };
+type Genre = 
+ variant {
+   academic;
+   bengaliClassics;
+   biography;
+   childrens;
+   fiction;
+   history;
+   nonFiction;
+   other;
+   poetry;
+   religion;
+   science;
+ };
+type FlashSaleView = 
+ record {
+   createdAt: Timestamp;
+   endTime: Timestamp;
+   id: FlashSaleId;
+   isCurrentlyActive: bool;
+   items: vec FlashSaleItem;
+   startTime: Timestamp;
+   titleBn: text;
+   titleEn: text;
+ };
+type FlashSaleItem = 
+ record {
+   discountPercent: nat;
+   discountedPriceInPaisa: nat;
+   originalPriceInPaisa: nat;
+   productId: ProductId;
+   quantityLimit: opt nat;
+   soldCount: nat;
+ };
+type FlashSaleId = nat;
+type CreateReviewInput = 
+ record {
+   bodyEn: text;
+   productId: ProductId;
+   rating: nat;
+   titleEn: text;
+ };
+type CreateProductInput = 
+ record {
+   coverImageUrl: text;
+   genre: Genre;
+   info: ProductLabel;
+   isbn: text;
+   language: Language;
+   priceInPaisa: nat;
+   publicationDate: Timestamp;
+   publisher: text;
+   stockCount: nat;
+ };
+type CreateOrderInput = 
+ record {
+   items: vec OrderItem;
+   promoCode: opt text;
+   shippingAddressId: AddressId;
+   stripePaymentIntentId: text;
+ };
+type CreateFlashSaleInput = 
+ record {
+   endTime: Timestamp;
+   items: vec FlashSaleItem;
+   startTime: Timestamp;
+   titleBn: text;
+   titleEn: text;
+ };
+type CartItem = 
+ record {
+   addedAt: Timestamp;
+   priceSnapshotInPaisa: nat;
+   productId: ProductId;
+   quantity: nat;
+ };
+type AppError = 
+ variant {
+   alreadyExists;
+   alreadyReviewed;
+   alreadyVoted;
+   expired;
+   insufficientStock;
+   invalidInput: text;
+   limitExceeded;
+   minSpend: nat;
+   notFound;
+   unauthorized;
+ };
+type AnswerId = nat;
+type Answer = 
+ record {
+   answerText: text;
+   answeredBy: UserId;
+   createdAt: Timestamp;
+   helpfulVotes: nat;
+   id: AnswerId;
+   questionId: QuestionId;
+ };
+type AdminAnalytics = 
+ record {
+   bestsellers: vec record {
+                      ProductId;
+                      nat;
+                    };
+   recentOrderCount: nat;
+   recentRevenueInPaisa: nat;
+   totalOrders: nat;
+   totalProducts: nat;
+   totalRevenueInPaisa: nat;
+   totalUsers: nat;
+ };
+type AddressInput = 
+ record {
+   city: text;
+   district: text;
+   fullName: text;
+   line1: text;
+   line2: text;
+   phone: text;
+   pincode: text;
+   state: text;
+ };
+type AddressId = nat;
+type Address = 
+ record {
+   city: text;
+   createdAt: Timestamp;
+   district: text;
+   fullName: text;
+   id: AddressId;
+   isDefault: bool;
+   line1: text;
+   line2: text;
+   phone: text;
+   pincode: text;
+   state: text;
+   userId: UserId;
+ };
+service : {
+  _initializeAccessControl: () -> ();
+  addAddress: (input: AddressInput) ->
+   (variant {
+      err: AppError;
+      ok: AddressId;
+    });
+  addToCart: (productId: ProductId, quantity: nat) ->
+   (variant {
+      err: AppError;
+      ok;
+    });
+  addToWishlist: (productId: ProductId) -> (variant {
+                                              err: AppError;
+                                              ok;
+                                            });
+  askQuestion: (productId: ProductId, questionText: text) ->
+   (variant {
+      err: AppError;
+      ok: QuestionId;
+    });
+  assignCallerUserRole: (user: principal, role: UserRole) -> ();
+  clearCart: () -> ();
+  createCheckoutSession: (items: vec ShoppingItem, successUrl: text,
+   cancelUrl: text) -> (text);
+  createFlashSale: (input: CreateFlashSaleInput) -> (FlashSaleId);
+  createOrder: (input: CreateOrderInput) ->
+   (variant {
+      err: AppError;
+      ok: OrderId;
+    });
+  createProduct: (input: CreateProductInput) ->
+   (variant {
+      err: AppError;
+      ok: ProductId;
+    });
+  createPromoCode: (code: text, discountPercent: nat, maxUsageCount: 
+   opt nat, minSpendInPaisa: nat, validFrom: Timestamp, validUntil:
+   Timestamp) -> (variant {
+                    err: AppError;
+                    ok: PromoCodeId;
+                  });
+  createReview: (input: CreateReviewInput) ->
+   (variant {
+      err: AppError;
+      ok: ReviewId;
+    });
+  deactivateFlashSale: (id: FlashSaleId) -> (bool);
+  deactivatePromoCode: (code: text) -> (bool);
+  deleteAddress: (addressId: AddressId) -> (bool);
+  deleteProduct: (id: ProductId) -> (bool);
+  downloadInvoice: (orderId: OrderId) -> (text) query;
+  getAdminAnalytics: () -> (AdminAnalytics) query;
+  getCallerUserProfile: () -> (opt UserProfile) query;
+  getCallerUserRole: () -> (UserRole) query;
+  getCart: () -> (vec CartItem) query;
+  getFlashSale: (id: FlashSaleId) -> (opt FlashSaleView) query;
+  getOrder: (orderId: OrderId) -> (opt Order) query;
+  getProduct: (id: ProductId) -> (opt ProductView) query;
+  getRecentlyViewed: () -> (vec ProductView) query;
+  getReview: (id: ReviewId) -> (opt Review) query;
+  getStripeSessionStatus: (sessionId: text) -> (StripeSessionStatus);
+  getUserProfile: (user: UserId) -> (opt UserProfile) query;
+  getWishlist: () -> (vec ProductId) query;
+  isCallerAdmin: () -> (bool) query;
+  isStripeConfigured: () -> (bool) query;
+  listAddresses: () -> (vec Address) query;
+  listAllOrders: (offset: nat, limit: nat) -> (vec Order) query;
+  listAnswers: (questionId: QuestionId) -> (vec Answer) query;
+  listFlashSales: (activeOnly: bool) -> (vec FlashSaleView) query;
+  listMyOrders: () -> (vec Order) query;
+  listProducts: (filterOpt: opt ProductFilter, sortOpt: opt ProductSort,
+   offset: nat, limit: nat) -> (vec ProductView) query;
+  listQuestions: (productId: ProductId) -> (vec Question) query;
+  listReviews: (productId: ProductId) -> (vec Review) query;
+  listReviewsSorted: (productId: ProductId, sortMode:
+   variant {
+     helpfulness;
+     rating;
+     recency;
+   }) -> (vec Review) query;
+  postAnswer: (questionId: QuestionId, answerText: text) ->
+   (variant {
+      err: AppError;
+      ok: AnswerId;
+    });
+  recordRecentlyViewed: (productId: ProductId) -> ();
+  removeFromCart: (productId: ProductId) -> ();
+  removeFromWishlist: (productId: ProductId) -> ();
+  saveCallerUserProfile: (profile: UserProfile) ->
+   (variant {
+      err: AppError;
+      ok;
+    });
+  searchProducts: (searchTerm: text, limit: nat) -> (vec ProductView) query;
+  setDefaultAddress: (addressId: AddressId) -> (bool);
+  setStripeConfiguration: (config: StripeConfiguration) -> ();
+  transform: (input: TransformationInput) -> (TransformationOutput) query;
+  updateAddress: (addressId: AddressId, input: AddressInput) ->
+   (variant {
+      err: AppError;
+      ok: bool;
+    });
+  updateCartQuantity: (productId: ProductId, quantity: nat) ->
+   (variant {
+      err: AppError;
+      ok;
+    });
+  updateOrderStatus: (orderId: OrderId, status: OrderStatus, note: text) ->
+   (bool);
+  updateProduct: (input: UpdateProductInput) ->
+   (variant {
+      err: AppError;
+      ok: bool;
+    });
+  updateStock: (id: ProductId, delta: int) -> (bool);
+  validatePromoCode: (code: text) -> (opt PromoCode) query;
+  voteAnswerHelpful: (answerId: AnswerId) ->
+   (variant {
+      err: AppError;
+      ok: bool;
+    });
+  voteReviewHelpful: (reviewId: ReviewId) ->
+   (variant {
+      err: AppError;
+      ok: bool;
+    });
+}
