@@ -96,11 +96,11 @@ mixin (
     OrderLib.listAllOrders(orders, offset, limit);
   };
 
-  public shared ({ caller }) func updateOrderStatus(orderId : Common.OrderId, status : OrderTypes.OrderStatus, note : Text) : async Bool {
+  public shared ({ caller }) func updateOrderStatus(orderId : Common.OrderId, status : OrderTypes.OrderStatus, note : Text, estimatedDeliveryDate : ?Int, courierNote : ?Text) : async Bool {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Admins only");
     };
-    OrderLib.updateOrderStatus(orders, orderId, status, note);
+    OrderLib.updateOrderStatus(orders, orderId, status, note, estimatedDeliveryDate, courierNote);
   };
 
   public shared ({ caller }) func createPromoCode(

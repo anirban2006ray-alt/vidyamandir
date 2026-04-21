@@ -160,7 +160,20 @@ export type TranslationKey =
   | "checkBackSoon"
   | "profileSaved"
   | "deleteAddressConfirm"
-  | "searchPlaceholderBooks";
+  | "searchPlaceholderBooks"
+  // ─── Enquiry keys ──────────────────────────────────────────────────────────
+  | "enquiry"
+  | "enquiryTitle"
+  | "enquirySubtitle"
+  | "enquiryName"
+  | "enquiryEmail"
+  | "enquiryPhone"
+  | "enquiryMessage"
+  | "enquirySubmit"
+  | "enquirySuccess"
+  | "enquirySuccessMsg"
+  | "contactUs"
+  | "whatsappChat";
 
 const translations: Record<TranslationKey, Record<Lang, string>> = {
   home: { en: "Home", bn: "হোম" },
@@ -298,8 +311,8 @@ const translations: Record<TranslationKey, Record<Lang, string>> = {
     bn: "পূর্ব বর্ধমানের আপনার বিশ্বস্ত বইয়ের দোকান",
   },
   address: {
-    en: "Near 12h, Sitaw, Road City, Sina, Bardihann, Purba Bardhaman | +91 97367 67898",
-    bn: "নিকট ১২এইচ, সিতাও, রোড সিটি, সিনা, বর্দিহান, পূর্ব বর্ধমান | +91 97367 67898",
+    en: "Balgona, GT Road, Purba Bardhaman, Pin-713125 | +91 94757 27810",
+    bn: "বালগোনা, জিটি রোড, পূর্ব বর্ধমান, পিন-৭১৩১২৫ | +91 94757 27810",
   },
   // ─── New keys ──────────────────────────────────────────────────────────────
   question_posted: {
@@ -398,6 +411,25 @@ const translations: Record<TranslationKey, Record<Lang, string>> = {
     en: "Search books...",
     bn: "বই খুঁজুন...",
   },
+  // ─── Enquiry keys ──────────────────────────────────────────────────────────
+  enquiry: { en: "Enquiry", bn: "অনুসন্ধান" },
+  enquiryTitle: { en: "Send Us an Enquiry", bn: "আমাদের কাছে অনুসন্ধান পাঠান" },
+  enquirySubtitle: {
+    en: "Have a question or feedback? We'd love to hear from you.",
+    bn: "কোনো প্রশ্ন বা মতামত আছে? আমরা আপনার কাছ থেকে শুনতে চাই।",
+  },
+  enquiryName: { en: "Your Name", bn: "আপনার নাম" },
+  enquiryEmail: { en: "Email Address", bn: "ইমেইল ঠিকানা" },
+  enquiryPhone: { en: "Phone Number", bn: "ফোন নম্বর" },
+  enquiryMessage: { en: "Message", bn: "বার্তা" },
+  enquirySubmit: { en: "Send Enquiry", bn: "অনুসন্ধান পাঠান" },
+  enquirySuccess: { en: "Enquiry Sent!", bn: "অনুসন্ধান পাঠানো হয়েছে!" },
+  enquirySuccessMsg: {
+    en: "Thank you! We'll get back to you soon.",
+    bn: "ধন্যবাদ! আমরা শীঘ্রই আপনার সাথে যোগাযোগ করব।",
+  },
+  contactUs: { en: "Contact Us", bn: "যোগাযোগ করুন" },
+  whatsappChat: { en: "Chat on WhatsApp", bn: "হোয়াটসঅ্যাপে চ্যাট করুন" },
 };
 
 export function t(key: TranslationKey, lang: Lang): string {

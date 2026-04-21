@@ -178,6 +178,15 @@ export interface FlashSaleView {
     titleEn: string;
 }
 export type QuestionId = bigint;
+export interface Enquiry {
+    id: string;
+    status: EnquiryStatus;
+    name: string;
+    submittedAt: Timestamp;
+    email: string;
+    message: string;
+    phone: string;
+}
 export interface Order {
     id: OrderId;
     totalInPaisa: bigint;
@@ -187,6 +196,8 @@ export interface Order {
     discountInPaisa: bigint;
     promoCodeApplied?: string;
     createdAt: Timestamp;
+    estimatedDeliveryDate?: Timestamp;
+    courierNote?: string;
     statusHistory: Array<StatusUpdate>;
     updatedAt: Timestamp;
     shippingAddress: Address;
@@ -295,6 +306,11 @@ export interface UserProfile {
     phone: string;
 }
 export type OrderId = bigint;
+export enum EnquiryStatus {
+    new_ = "new",
+    replied = "replied",
+    viewed = "viewed"
+}
 export enum Genre {
     other = "other",
     biography = "biography",
@@ -426,6 +442,7 @@ export interface backendInterface {
     isCallerAdmin(): Promise<boolean>;
     isStripeConfigured(): Promise<boolean>;
     listAddresses(): Promise<Array<Address>>;
+    listAllEnquiries(): Promise<Array<Enquiry>>;
     listAllOrders(offset: bigint, limit: bigint): Promise<Array<Order>>;
     listAnswers(questionId: QuestionId): Promise<Array<Answer>>;
     listFlashSales(activeOnly: boolean): Promise<Array<FlashSaleView>>;
@@ -454,6 +471,13 @@ export interface backendInterface {
     searchProducts(searchTerm: string, limit: bigint): Promise<Array<ProductView>>;
     setDefaultAddress(addressId: AddressId): Promise<boolean>;
     setStripeConfiguration(config: StripeConfiguration): Promise<void>;
+    submitEnquiry(name: string, email: string, phone: string, message: string): Promise<{
+        __kind__: "ok";
+        ok: string;
+    } | {
+        __kind__: "err";
+        err: AppError;
+    }>;
     transform(input: TransformationInput): Promise<TransformationOutput>;
     updateAddress(addressId: AddressId, input: AddressInput): Promise<{
         __kind__: "ok";
@@ -469,7 +493,8 @@ export interface backendInterface {
         __kind__: "err";
         err: AppError;
     }>;
-    updateOrderStatus(orderId: OrderId, status: OrderStatus, note: string): Promise<boolean>;
+    updateEnquiryStatus(id: string, status: EnquiryStatus): Promise<boolean>;
+    updateOrderStatus(orderId: OrderId, status: OrderStatus, note: string, estimatedDeliveryDate: bigint | null, courierNote: string | null): Promise<boolean>;
     updateProduct(input: UpdateProductInput): Promise<{
         __kind__: "ok";
         ok: boolean;

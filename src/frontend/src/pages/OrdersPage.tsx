@@ -29,15 +29,15 @@ const STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
     label: "Processing",
     labelBn: "প্রক্রিয়া চলছে",
     className:
-      "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/40",
-    dotClass: "bg-blue-500",
+      "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40",
+    dotClass: "bg-amber-500",
   },
   shipped: {
     label: "Shipped",
     labelBn: "পাঠানো হয়েছে",
     className:
-      "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/40",
-    dotClass: "bg-purple-500",
+      "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/40",
+    dotClass: "bg-blue-500",
   },
   delivered: {
     label: "Delivered",

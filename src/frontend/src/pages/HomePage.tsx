@@ -1140,8 +1140,8 @@ function StoreInfoBanner() {
                 style={{ color: "oklch(0.97 0 0 / 0.65)" }}
               >
                 {lang === "bn"
-                  ? "নিকট ১২এইচ, সিতাও রোড, পূর্ব বর্ধমান, পশ্চিমবঙ্গ"
-                  : "Near 12H, Sitaw Road, Purba Bardhaman, West Bengal"}
+                  ? "বলগোনা, জিটি রোড, পূর্ব বর্ধমান, পিন-৭১৩১২৫"
+                  : "Balgona, GT Road, Purba Bardhaman, pin-713125"}
               </p>
             </div>
           </div>
@@ -1168,7 +1168,7 @@ function StoreInfoBanner() {
                   className="text-sm font-bold"
                   style={{ color: "oklch(0.97 0 0 / 0.85)" }}
                 >
-                  +91-97367898
+                  +91-9475727810
                 </p>
               </div>
             </div>

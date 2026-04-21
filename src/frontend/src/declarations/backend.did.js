@@ -192,6 +192,8 @@ export const Order = IDL.Record({
   'discountInPaisa' : IDL.Nat,
   'promoCodeApplied' : IDL.Opt(IDL.Text),
   'createdAt' : Timestamp,
+  'estimatedDeliveryDate' : IDL.Opt(Timestamp),
+  'courierNote' : IDL.Opt(IDL.Text),
   'statusHistory' : IDL.Vec(StatusUpdate),
   'updatedAt' : Timestamp,
   'shippingAddress' : Address,
@@ -230,6 +232,20 @@ export const StripeSessionStatus = IDL.Variant({
     'response' : IDL.Text,
   }),
   'failed' : IDL.Record({ 'error' : IDL.Text }),
+});
+export const EnquiryStatus = IDL.Variant({
+  'new' : IDL.Null,
+  'replied' : IDL.Null,
+  'viewed' : IDL.Null,
+});
+export const Enquiry = IDL.Record({
+  'id' : IDL.Text,
+  'status' : EnquiryStatus,
+  'name' : IDL.Text,
+  'submittedAt' : Timestamp,
+  'email' : IDL.Text,
+  'message' : IDL.Text,
+  'phone' : IDL.Text,
 });
 export const AnswerId = IDL.Nat;
 export const Answer = IDL.Record({
@@ -384,6 +400,7 @@ export const idlService = IDL.Service({
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'isStripeConfigured' : IDL.Func([], [IDL.Bool], ['query']),
   'listAddresses' : IDL.Func([], [IDL.Vec(Address)], ['query']),
+  'listAllEnquiries' : IDL.Func([], [IDL.Vec(Enquiry)], ['query']),
   'listAllOrders' : IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(Order)], ['query']),
   'listAnswers' : IDL.Func([QuestionId], [IDL.Vec(Answer)], ['query']),
   'listFlashSales' : IDL.Func([IDL.Bool], [IDL.Vec(FlashSaleView)], ['query']),
@@ -427,6 +444,11 @@ export const idlService = IDL.Service({
     ),
   'setDefaultAddress' : IDL.Func([AddressId], [IDL.Bool], []),
   'setStripeConfiguration' : IDL.Func([StripeConfiguration], [], []),
+  'submitEnquiry' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Variant({ 'ok' : IDL.Text, 'err' : AppError })],
+      [],
+    ),
   'transform' : IDL.Func(
       [TransformationInput],
       [TransformationOutput],
@@ -442,8 +464,9 @@ export const idlService = IDL.Service({
       [IDL.Variant({ 'ok' : IDL.Null, 'err' : AppError })],
       [],
     ),
+  'updateEnquiryStatus' : IDL.Func([IDL.Text, EnquiryStatus], [IDL.Bool], []),
   'updateOrderStatus' : IDL.Func(
-      [OrderId, OrderStatus, IDL.Text],
+      [OrderId, OrderStatus, IDL.Text, IDL.Opt(IDL.Int), IDL.Opt(IDL.Text)],
       [IDL.Bool],
       [],
     ),
@@ -653,6 +676,8 @@ export const idlFactory = ({ IDL }) => {
     'discountInPaisa' : IDL.Nat,
     'promoCodeApplied' : IDL.Opt(IDL.Text),
     'createdAt' : Timestamp,
+    'estimatedDeliveryDate' : IDL.Opt(Timestamp),
+    'courierNote' : IDL.Opt(IDL.Text),
     'statusHistory' : IDL.Vec(StatusUpdate),
     'updatedAt' : Timestamp,
     'shippingAddress' : Address,
@@ -691,6 +716,20 @@ export const idlFactory = ({ IDL }) => {
       'response' : IDL.Text,
     }),
     'failed' : IDL.Record({ 'error' : IDL.Text }),
+  });
+  const EnquiryStatus = IDL.Variant({
+    'new' : IDL.Null,
+    'replied' : IDL.Null,
+    'viewed' : IDL.Null,
+  });
+  const Enquiry = IDL.Record({
+    'id' : IDL.Text,
+    'status' : EnquiryStatus,
+    'name' : IDL.Text,
+    'submittedAt' : Timestamp,
+    'email' : IDL.Text,
+    'message' : IDL.Text,
+    'phone' : IDL.Text,
   });
   const AnswerId = IDL.Nat;
   const Answer = IDL.Record({
@@ -843,6 +882,7 @@ export const idlFactory = ({ IDL }) => {
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isStripeConfigured' : IDL.Func([], [IDL.Bool], ['query']),
     'listAddresses' : IDL.Func([], [IDL.Vec(Address)], ['query']),
+    'listAllEnquiries' : IDL.Func([], [IDL.Vec(Enquiry)], ['query']),
     'listAllOrders' : IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(Order)], ['query']),
     'listAnswers' : IDL.Func([QuestionId], [IDL.Vec(Answer)], ['query']),
     'listFlashSales' : IDL.Func(
@@ -890,6 +930,11 @@ export const idlFactory = ({ IDL }) => {
       ),
     'setDefaultAddress' : IDL.Func([AddressId], [IDL.Bool], []),
     'setStripeConfiguration' : IDL.Func([StripeConfiguration], [], []),
+    'submitEnquiry' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Variant({ 'ok' : IDL.Text, 'err' : AppError })],
+        [],
+      ),
     'transform' : IDL.Func(
         [TransformationInput],
         [TransformationOutput],
@@ -905,8 +950,9 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Variant({ 'ok' : IDL.Null, 'err' : AppError })],
         [],
       ),
+    'updateEnquiryStatus' : IDL.Func([IDL.Text, EnquiryStatus], [IDL.Bool], []),
     'updateOrderStatus' : IDL.Func(
-        [OrderId, OrderStatus, IDL.Text],
+        [OrderId, OrderStatus, IDL.Text, IDL.Opt(IDL.Int), IDL.Opt(IDL.Text)],
         [IDL.Bool],
         [],
       ),

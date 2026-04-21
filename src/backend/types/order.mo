@@ -61,6 +61,8 @@ module {
     idempotencyKey : Text; // caller principal + timestamp — prevents duplicate submissions
     promoCodeApplied : ?Text;
     discountInPaisa : Nat;
+    estimatedDeliveryDate : ?Common.Timestamp;
+    courierNote : ?Text;
     createdAt : Common.Timestamp;
     updatedAt : Common.Timestamp;
   };

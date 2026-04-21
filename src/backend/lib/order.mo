@@ -390,6 +390,8 @@ module {
       idempotencyKey = idempotencyKey;
       promoCodeApplied = promoCodeApplied;
       discountInPaisa = discountInPaisa;
+      estimatedDeliveryDate = null;
+      courierNote = null;
       createdAt = now;
       updatedAt = now;
     };
@@ -468,6 +470,8 @@ module {
     orderId : Common.OrderId,
     status : OrderTypes.OrderStatus,
     note : Text,
+    estimatedDeliveryDate : ?Common.Timestamp,
+    courierNote : ?Text,
   ) : Bool {
     switch (orders.get(orderId)) {
       case null { false };
@@ -478,6 +482,14 @@ module {
           order with
           status = status;
           statusHistory = order.statusHistory.concat([statusEntry]);
+          estimatedDeliveryDate = switch (estimatedDeliveryDate) {
+            case (?d) ?d;
+            case null order.estimatedDeliveryDate;
+          };
+          courierNote = switch (courierNote) {
+            case (?n) ?n;
+            case null order.courierNote;
+          };
           updatedAt = now;
         };
         orders.add(orderId, updated);

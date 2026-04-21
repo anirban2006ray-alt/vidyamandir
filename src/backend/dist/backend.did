@@ -187,8 +187,10 @@ type OrderItem =
 type OrderId = nat;
 type Order = 
  record {
+   courierNote: opt text;
    createdAt: Timestamp;
    discountInPaisa: nat;
+   estimatedDeliveryDate: opt Timestamp;
    id: OrderId;
    idempotencyKey: text;
    items: vec OrderItem;
@@ -242,6 +244,22 @@ type FlashSaleItem =
    soldCount: nat;
  };
 type FlashSaleId = nat;
+type EnquiryStatus = 
+ variant {
+   new;
+   replied;
+   viewed;
+ };
+type Enquiry = 
+ record {
+   email: text;
+   id: text;
+   message: text;
+   name: text;
+   phone: text;
+   status: EnquiryStatus;
+   submittedAt: Timestamp;
+ };
 type CreateReviewInput = 
  record {
    bodyEn: text;
@@ -413,6 +431,7 @@ service : {
   isCallerAdmin: () -> (bool) query;
   isStripeConfigured: () -> (bool) query;
   listAddresses: () -> (vec Address) query;
+  listAllEnquiries: () -> (vec Enquiry) query;
   listAllOrders: (offset: nat, limit: nat) -> (vec Order) query;
   listAnswers: (questionId: QuestionId) -> (vec Answer) query;
   listFlashSales: (activeOnly: bool) -> (vec FlashSaleView) query;
@@ -443,6 +462,11 @@ service : {
   searchProducts: (searchTerm: text, limit: nat) -> (vec ProductView) query;
   setDefaultAddress: (addressId: AddressId) -> (bool);
   setStripeConfiguration: (config: StripeConfiguration) -> ();
+  submitEnquiry: (name: text, email: text, phone: text, message: text) ->
+   (variant {
+      err: AppError;
+      ok: text;
+    });
   transform: (input: TransformationInput) -> (TransformationOutput) query;
   updateAddress: (addressId: AddressId, input: AddressInput) ->
    (variant {
@@ -454,8 +478,9 @@ service : {
       err: AppError;
       ok;
     });
-  updateOrderStatus: (orderId: OrderId, status: OrderStatus, note: text) ->
-   (bool);
+  updateEnquiryStatus: (id: text, status: EnquiryStatus) -> (bool);
+  updateOrderStatus: (orderId: OrderId, status: OrderStatus, note: text,
+   estimatedDeliveryDate: opt int, courierNote: opt text) -> (bool);
   updateProduct: (input: UpdateProductInput) ->
    (variant {
       err: AppError;

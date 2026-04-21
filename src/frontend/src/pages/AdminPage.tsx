@@ -23,10 +23,14 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   BarChart2,
   BookOpen,
+  CheckCircle2,
   Edit2,
+  Eye,
   FlameIcon,
+  Inbox,
   ListOrdered,
   Lock,
+  MessageSquare,
   Package,
   Plus,
   RefreshCw,
@@ -39,10 +43,11 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { OrderStatus } from "../backend";
+import { EnquiryStatus, OrderStatus } from "../backend";
 import type {
   CreateFlashSaleInput,
   CreateProductInput,
+  Enquiry,
   FlashSaleView,
   Genre,
   Language,
@@ -59,14 +64,327 @@ import {
   useDeactivateFlashSale,
   useDeleteProduct,
   useGetAdminAnalytics,
+  useListAllEnquiries,
   useListAllOrders,
   useListFlashSales,
   useListProducts,
+  useUpdateEnquiryStatus,
   useUpdateOrderStatus,
   useUpdateProduct,
   useUpdateStock,
 } from "../hooks/useQueries";
 import { formatPrice } from "../lib/i18n";
+
+// ─── Admin Password Gate ───────────────────────────────────────────────────────
+
+const ADMIN_PASSWORD = "Anirban@2006";
+
+function AdminPasswordGate({ onUnlock }: { onUnlock: () => void }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === ADMIN_PASSWORD) {
+      sessionStorage.setItem("adminUnlocked", "true");
+      onUnlock();
+    } else {
+      setError(true);
+      setPassword("");
+    }
+  };
+
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{ background: "oklch(var(--background))" }}
+      data-ocid="admin.password_gate"
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl p-8 space-y-7"
+        style={{
+          background: "oklch(var(--card))",
+          border: "1px solid oklch(var(--border))",
+          boxShadow: "0 8px 40px oklch(0 0 0 / 0.25)",
+        }}
+      >
+        {/* Logo */}
+        <div className="text-center space-y-3">
+          <div
+            className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(var(--accent)), oklch(0.58 0.27 38))",
+              boxShadow: "0 4px 16px oklch(var(--accent) / 0.35)",
+            }}
+          >
+            <Lock
+              size={26}
+              style={{ color: "oklch(var(--accent-foreground))" }}
+            />
+          </div>
+          <div>
+            <h1 className="font-display font-bold text-xl tracking-tight">
+              VIDYAMANDIR
+            </h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Admin Access — Developer Only
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-widest">
+              Admin Password
+            </Label>
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError(false);
+              }}
+              className="input-field h-11 rounded-xl text-base text-center tracking-widest"
+              data-ocid="admin.password_input"
+              placeholder="••••••••••••"
+              autoFocus
+              required
+            />
+          </div>
+
+          {error && (
+            <p
+              className="text-xs font-semibold text-center py-2.5 px-3 rounded-lg"
+              style={{
+                background: "oklch(var(--destructive) / 0.1)",
+                color: "oklch(var(--destructive))",
+              }}
+              data-ocid="admin.password_error_state"
+            >
+              Incorrect password. Access denied.
+            </p>
+          )}
+
+          <button
+            type="submit"
+            data-ocid="admin.password_submit_button"
+            className="cta-primary w-full py-3 text-sm font-bold"
+          >
+            Unlock Admin Panel
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Enquiries Tab ─────────────────────────────────────────────────────────────
+
+const ENQUIRY_STATUS_STYLES: Record<
+  string,
+  { bg: string; text: string; dot: string; label: string }
+> = {
+  new: {
+    bg: "bg-blue-500/10",
+    text: "text-blue-400",
+    dot: "bg-blue-400",
+    label: "New",
+  },
+  viewed: {
+    bg: "bg-amber-500/10",
+    text: "text-amber-400",
+    dot: "bg-amber-400",
+    label: "Viewed",
+  },
+  replied: {
+    bg: "bg-green-500/10",
+    text: "text-green-400",
+    dot: "bg-green-400",
+    label: "Replied",
+  },
+};
+
+function EnquiryStatusBadge({ status }: { status: string }) {
+  const style = ENQUIRY_STATUS_STYLES[status] ?? ENQUIRY_STATUS_STYLES.new;
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${style.bg} ${style.text} border border-current/20`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+      {style.label}
+    </span>
+  );
+}
+
+function EnquiriesTab({
+  enquiries,
+  loading,
+}: {
+  enquiries: Enquiry[] | undefined;
+  loading: boolean;
+}) {
+  const { mutate: updateStatus } = useUpdateEnquiryStatus();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const handleMark = (id: string, status: EnquiryStatus) => {
+    updateStatus(
+      { id, status },
+      {
+        onSuccess: () => toast.success(`Marked as ${status}`),
+        onError: () => toast.error("Failed to update status"),
+      },
+    );
+  };
+
+  return (
+    <div className="animate-fade-in" data-ocid="admin.enquiries_section">
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+            <Inbox size={15} className="text-primary" />
+          </div>
+          <h2 className="font-display font-bold text-sm uppercase tracking-widest text-foreground">
+            Enquiries ({enquiries?.length ?? 0})
+          </h2>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : enquiries?.length ? (
+        <div
+          className="card-elevation overflow-hidden"
+          data-ocid="admin.enquiries_list"
+        >
+          {enquiries.map((enq, idx) => {
+            const isExpanded = expandedId === enq.id;
+            const dateStr = new Date(
+              Number(enq.submittedAt) / 1_000_000,
+            ).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            return (
+              <div
+                key={enq.id}
+                className={`border-b border-border last:border-b-0 ${enq.status === "new" ? "bg-blue-500/3" : ""}`}
+                data-ocid={`admin.enquiry.${idx + 1}`}
+              >
+                <button
+                  type="button"
+                  className="w-full flex items-start gap-4 p-4 hover:bg-muted/10 cursor-pointer transition-smooth text-left"
+                  onClick={() => setExpandedId(isExpanded ? null : enq.id)}
+                >
+                  <div className="w-9 h-9 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
+                    <MessageSquare
+                      size={15}
+                      className="text-muted-foreground"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="font-semibold text-sm">{enq.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {enq.email} · {enq.phone}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <EnquiryStatusBadge status={enq.status} />
+                        <span className="text-xs text-muted-foreground/60">
+                          {dateStr}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
+                      {enq.message}
+                    </p>
+                  </div>
+                </button>
+                {isExpanded && (
+                  <div
+                    className="px-4 pb-4 ml-13 border-t"
+                    style={{ borderColor: "oklch(var(--border))" }}
+                  >
+                    <p className="text-sm text-foreground/80 mt-3 leading-relaxed bg-muted/20 rounded-xl p-3">
+                      {enq.message}
+                    </p>
+                    <div className="flex items-center gap-2 mt-3 flex-wrap">
+                      {enq.status !== "viewed" && enq.status !== "replied" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            handleMark(enq.id, EnquiryStatus.viewed)
+                          }
+                          data-ocid={`admin.mark_viewed.${idx + 1}`}
+                          className="h-8 px-3 rounded-lg text-xs text-amber-400 hover:bg-amber-500/10 gap-1"
+                        >
+                          <Eye size={12} />
+                          Mark as Viewed
+                        </Button>
+                      )}
+                      {enq.status !== "replied" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            handleMark(enq.id, EnquiryStatus.replied)
+                          }
+                          data-ocid={`admin.mark_replied.${idx + 1}`}
+                          className="h-8 px-3 rounded-lg text-xs text-green-400 hover:bg-green-500/10 gap-1"
+                        >
+                          <CheckCircle2 size={12} />
+                          Mark as Replied
+                        </Button>
+                      )}
+                      <a
+                        href={`mailto:${enq.email}?subject=Re: Your Enquiry at Vidyamandir`}
+                        className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs text-muted-foreground hover:text-accent hover:bg-accent/10 transition-smooth"
+                        data-ocid={`admin.reply_email.${idx + 1}`}
+                      >
+                        Reply via Email
+                      </a>
+                      <a
+                        href={`https://wa.me/91${enq.phone.replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs text-green-400 hover:bg-green-500/10 transition-smooth"
+                        data-ocid={`admin.reply_whatsapp.${idx + 1}`}
+                      >
+                        Reply on WhatsApp
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          className="card-elevation flex flex-col items-center py-16 gap-4"
+          data-ocid="admin.enquiries.empty_state"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-muted/30 flex items-center justify-center">
+            <Inbox size={28} className="text-muted-foreground/30" />
+          </div>
+          <p className="text-sm text-muted-foreground">No enquiries yet</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -972,6 +1290,9 @@ export default function AdminPage() {
   const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
   const { data: isAdmin, isLoading: adminLoading } = useIsAdmin();
+  const [adminUnlocked, setAdminUnlocked] = useState(
+    () => sessionStorage.getItem("adminUnlocked") === "true",
+  );
 
   const { data: analytics, isLoading: analyticsLoading } =
     useGetAdminAnalytics();
@@ -984,6 +1305,8 @@ export default function AdminPage() {
   const { data: flashSales, isLoading: flashSalesLoading } =
     useListFlashSales(false);
   const { data: orders, isLoading: ordersLoading } = useListAllOrders();
+  const { data: enquiries, isLoading: enquiriesLoading } =
+    useListAllEnquiries();
 
   const { mutate: deleteProduct } = useDeleteProduct();
   const { mutate: createProduct, isPending: creatingProduct } =
@@ -1023,6 +1346,13 @@ export default function AdminPage() {
     "processing" as OrderStatus,
   );
   const [orderStatusNote, setOrderStatusNote] = useState("");
+  const [orderDeliveryDate, setOrderDeliveryDate] = useState("");
+  const [orderCourierNote, setOrderCourierNote] = useState("");
+
+  // Password gate — show BEFORE everything else
+  if (!adminUnlocked) {
+    return <AdminPasswordGate onUnlock={() => setAdminUnlocked(true)} />;
+  }
 
   // Guards
   if (!isAuthenticated) {
@@ -1184,17 +1514,24 @@ export default function AdminPage() {
   const handleUpdateOrderStatus = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrder) return;
+    const estDelivery = orderDeliveryDate
+      ? BigInt(new Date(orderDeliveryDate).getTime()) * BigInt(1_000_000)
+      : null;
     updateOrderStatus(
       {
         orderId: selectedOrder.id,
         status: newOrderStatus,
         note: orderStatusNote,
+        estimatedDeliveryDate: estDelivery,
+        courierNote: orderCourierNote || null,
       },
       {
         onSuccess: () => {
           toast.success("Order status updated!");
           setOrderStatusDialog(false);
           setOrderStatusNote("");
+          setOrderDeliveryDate("");
+          setOrderCourierNote("");
         },
         onError: () => toast.error("Failed to update order status"),
       },
@@ -1227,6 +1564,7 @@ export default function AdminPage() {
               { value: "products", icon: Package, label: "Products" },
               { value: "flash-sales", icon: Zap, label: "Flash Sales" },
               { value: "orders", icon: ShoppingBag, label: "Orders" },
+              { value: "enquiries", icon: Inbox, label: "Enquiries" },
             ].map(({ value, icon: Icon, label }) => (
               <TabsTrigger
                 key={value}
@@ -1317,9 +1655,15 @@ export default function AdminPage() {
               setSelectedOrder(order);
               setNewOrderStatus(order.status as OrderStatus);
               setOrderStatusNote("");
+              setOrderDeliveryDate("");
+              setOrderCourierNote("");
               setOrderStatusDialog(true);
             }}
           />
+        </TabsContent>
+
+        <TabsContent value="enquiries">
+          <EnquiriesTab enquiries={enquiries} loading={enquiriesLoading} />
         </TabsContent>
       </Tabs>
 
@@ -1969,6 +2313,32 @@ export default function AdminPage() {
                   data-ocid="admin.order_status_note_input"
                   placeholder="e.g. Dispatched via DTDC, tracking: ABC123"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground font-semibold">
+                    Est. Delivery Date
+                  </Label>
+                  <Input
+                    type="date"
+                    value={orderDeliveryDate}
+                    onChange={(e) => setOrderDeliveryDate(e.target.value)}
+                    className="input-field h-9 rounded-lg text-xs"
+                    data-ocid="admin.order_delivery_date_input"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground font-semibold">
+                    Courier Note
+                  </Label>
+                  <Input
+                    value={orderCourierNote}
+                    onChange={(e) => setOrderCourierNote(e.target.value)}
+                    className="input-field h-9 rounded-lg text-xs"
+                    data-ocid="admin.order_courier_note_input"
+                    placeholder="e.g. DTDC #12345"
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button

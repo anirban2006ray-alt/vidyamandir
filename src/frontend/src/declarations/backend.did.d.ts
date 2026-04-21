@@ -99,6 +99,18 @@ export interface CreateReviewInput {
   'rating' : bigint,
   'titleEn' : string,
 }
+export interface Enquiry {
+  'id' : string,
+  'status' : EnquiryStatus,
+  'name' : string,
+  'submittedAt' : Timestamp,
+  'email' : string,
+  'message' : string,
+  'phone' : string,
+}
+export type EnquiryStatus = { 'new' : null } |
+  { 'replied' : null } |
+  { 'viewed' : null };
 export type FlashSaleId = bigint;
 export interface FlashSaleItem {
   'discountedPriceInPaisa' : bigint,
@@ -141,6 +153,8 @@ export interface Order {
   'discountInPaisa' : bigint,
   'promoCodeApplied' : [] | [string],
   'createdAt' : Timestamp,
+  'estimatedDeliveryDate' : [] | [Timestamp],
+  'courierNote' : [] | [string],
   'statusHistory' : Array<StatusUpdate>,
   'updatedAt' : Timestamp,
   'shippingAddress' : Address,
@@ -362,6 +376,7 @@ export interface _SERVICE {
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'isStripeConfigured' : ActorMethod<[], boolean>,
   'listAddresses' : ActorMethod<[], Array<Address>>,
+  'listAllEnquiries' : ActorMethod<[], Array<Enquiry>>,
   'listAllOrders' : ActorMethod<[bigint, bigint], Array<Order>>,
   'listAnswers' : ActorMethod<[QuestionId], Array<Answer>>,
   'listFlashSales' : ActorMethod<[boolean], Array<FlashSaleView>>,
@@ -397,6 +412,11 @@ export interface _SERVICE {
   'searchProducts' : ActorMethod<[string, bigint], Array<ProductView>>,
   'setDefaultAddress' : ActorMethod<[AddressId], boolean>,
   'setStripeConfiguration' : ActorMethod<[StripeConfiguration], undefined>,
+  'submitEnquiry' : ActorMethod<
+    [string, string, string, string],
+    { 'ok' : string } |
+      { 'err' : AppError }
+  >,
   'transform' : ActorMethod<[TransformationInput], TransformationOutput>,
   'updateAddress' : ActorMethod<
     [AddressId, AddressInput],
@@ -408,7 +428,11 @@ export interface _SERVICE {
     { 'ok' : null } |
       { 'err' : AppError }
   >,
-  'updateOrderStatus' : ActorMethod<[OrderId, OrderStatus, string], boolean>,
+  'updateEnquiryStatus' : ActorMethod<[string, EnquiryStatus], boolean>,
+  'updateOrderStatus' : ActorMethod<
+    [OrderId, OrderStatus, string, [] | [bigint], [] | [string]],
+    boolean
+  >,
   'updateProduct' : ActorMethod<
     [UpdateProductInput],
     { 'ok' : boolean } |

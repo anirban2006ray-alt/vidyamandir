@@ -11,6 +11,8 @@ import type {
   CreateOrderInput,
   CreateProductInput,
   CreateReviewInput,
+  Enquiry,
+  EnquiryStatus,
   FlashSaleView,
   Order,
   OrderStatus,
@@ -390,6 +392,8 @@ export function useCancelOrder() {
         orderId,
         "cancelled" as OrderStatus,
         "Cancelled by customer",
+        null,
+        null,
       );
     },
     onSuccess: (_, orderId) => {
@@ -417,13 +421,44 @@ export function useUpdateOrderStatus() {
       orderId,
       status,
       note,
-    }: { orderId: bigint; status: OrderStatus; note: string }) => {
+      estimatedDeliveryDate,
+      courierNote,
+    }: {
+      orderId: bigint;
+      status: OrderStatus;
+      note: string;
+      estimatedDeliveryDate?: bigint | null;
+      courierNote?: string | null;
+    }) => {
       if (!actor) throw new Error("Actor not available");
-      return actor.updateOrderStatus(orderId, status, note);
+      return actor.updateOrderStatus(
+        orderId,
+        status,
+        note,
+        estimatedDeliveryDate ?? null,
+        courierNote ?? null,
+      );
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       void qc.invalidateQueries({ queryKey: ["myOrders"] });
       void qc.invalidateQueries({ queryKey: ["allOrders"] });
+      void qc.invalidateQueries({
+        queryKey: ["order", vars.orderId.toString()],
+      });
+    },
+  });
+}
+
+export function useVoteReviewHelpful() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (reviewId: bigint) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.voteReviewHelpful(reviewId);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["reviews"] });
     },
   });
 }
@@ -630,6 +665,61 @@ export function useListAllOrders(offset = BigInt(0), limit = BigInt(50)) {
       return actor.listAllOrders(offset, limit);
     },
     enabled: !!actor && !isFetching && isAuthenticated,
+  });
+}
+
+// ─── Enquiries ────────────────────────────────────────────────────────────────
+
+export function useSubmitEnquiry() {
+  const { actor } = useActor(createActor);
+  return useMutation({
+    mutationFn: async ({
+      name,
+      email,
+      phone,
+      message,
+    }: {
+      name: string;
+      email: string;
+      phone: string;
+      message: string;
+    }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.submitEnquiry(name, email, phone, message);
+    },
+  });
+}
+
+export function useListAllEnquiries() {
+  const { actor, isFetching } = useActor(createActor);
+  const { isAuthenticated } = useInternetIdentity();
+  return useQuery<Enquiry[]>({
+    queryKey: ["allEnquiries"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listAllEnquiries();
+    },
+    enabled: !!actor && !isFetching && isAuthenticated,
+  });
+}
+
+export function useUpdateEnquiryStatus() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      status,
+    }: {
+      id: string;
+      status: EnquiryStatus;
+    }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.updateEnquiryStatus(id, status);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["allEnquiries"] });
+    },
   });
 }
 

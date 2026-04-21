@@ -20,7 +20,6 @@ import {
   Plus,
   ShoppingCart,
   Star,
-  ThumbsDown,
   ThumbsUp,
   Truck,
   Zap,
@@ -46,6 +45,7 @@ import {
   useRecordRecentlyViewed,
   useRemoveFromWishlist,
   useVoteAnswerHelpful,
+  useVoteReviewHelpful,
 } from "../hooks/useQueries";
 import { formatPrice } from "../lib/i18n";
 
@@ -282,7 +282,19 @@ function AvatarInitials({
 }
 
 // ─── Review Card ──────────────────────────────────────────────────────────────
-function ReviewCard({ review, index }: { review: Review; index: number }) {
+function ReviewCard({
+  review,
+  index,
+  votedReviewIds,
+  onVote,
+  lang,
+}: {
+  review: Review;
+  index: number;
+  votedReviewIds: Set<string>;
+  onVote: (id: bigint) => void;
+  lang: "en" | "bn";
+}) {
   const date = new Date(
     Number(review.createdAt / BigInt(1_000_000)),
   ).toLocaleDateString("en-IN", {
@@ -290,7 +302,12 @@ function ReviewCard({ review, index }: { review: Review; index: number }) {
     month: "short",
     year: "numeric",
   });
-  const authorName = `Reader ${index + 1}`;
+  // Generate a stable readable name from the userId principal
+  const principalStr = review.userId?.toString() ?? "";
+  const shortId =
+    principalStr.length > 8 ? principalStr.slice(0, 8) : `user${index + 1}`;
+  const authorName = `Reader #${shortId}`;
+  const voted = votedReviewIds.has(review.id.toString());
 
   return (
     <motion.div
@@ -314,7 +331,7 @@ function ReviewCard({ review, index }: { review: Review; index: number }) {
                     color: "oklch(0.72 0.16 145)",
                   }}
                 >
-                  <BadgeCheck size={11} /> Verified
+                  <BadgeCheck size={11} /> Verified Purchase
                 </span>
               )}
             </div>
@@ -324,6 +341,9 @@ function ReviewCard({ review, index }: { review: Review; index: number }) {
           </div>
           <p className="font-semibold text-sm text-foreground leading-tight mt-1">
             {review.titleEn}
+          </p>
+          <p className="text-xs text-muted-foreground font-medium mt-0.5">
+            {authorName}
           </p>
         </div>
       </div>
@@ -335,19 +355,19 @@ function ReviewCard({ review, index }: { review: Review; index: number }) {
       <div className="flex items-center gap-3 pt-1 border-t border-border/40 pl-12">
         <button
           type="button"
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-accent transition-colors"
+          onClick={() => onVote(review.id)}
+          disabled={voted}
+          className={`flex items-center gap-1.5 text-xs transition-smooth px-2.5 py-1 rounded-full border ${
+            voted
+              ? "border-accent/40 bg-accent/10 text-accent cursor-default"
+              : "border-border text-muted-foreground hover:border-accent/40 hover:text-accent"
+          }`}
+          aria-label={voted ? "Already voted helpful" : "Mark as helpful"}
           data-ocid={`review.helpful.${index + 1}`}
         >
-          <ThumbsUp size={11} />
-          Helpful ({review.helpfulVotes.toString()})
-        </button>
-        <button
-          type="button"
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
-          data-ocid={`review.not_helpful.${index + 1}`}
-        >
-          <ThumbsDown size={11} />
-          Not helpful
+          <ThumbsUp size={11} fill={voted ? "currentColor" : "none"} />
+          {lang === "bn" ? "সহায়ক" : "Helpful"} ({review.helpfulVotes.toString()}
+          )
         </button>
       </div>
     </motion.div>
@@ -996,13 +1016,32 @@ export default function ProductPage() {
   const { mutate: recordView } = useRecordRecentlyViewed();
   const { mutate: addWishlist } = useAddToWishlist();
   const { mutate: removeWishlist } = useRemoveFromWishlist();
+  const { mutate: voteReview } = useVoteReviewHelpful();
 
   const [activeTab, setActiveTab] = useState<TabMode>("reviews");
   const [sortMode, setSortMode] = useState<SortMode>("helpfulness");
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [showAskForm, setShowAskForm] = useState(false);
   const [qty, setQty] = useState(1);
+  const [votedReviewIds, setVotedReviewIds] = useState<Set<string>>(new Set());
   const tabsRef = useRef<HTMLDivElement>(null);
+
+  const handleVoteReview = (reviewId: bigint) => {
+    if (!isAuthenticated) {
+      login();
+      return;
+    }
+    const key = reviewId.toString();
+    if (votedReviewIds.has(key)) return;
+    voteReview(reviewId, {
+      onSuccess: () => {
+        setVotedReviewIds((prev) => new Set([...prev, key]));
+        toast.success(lang === "bn" ? "ভোট নথিভুক্ত হয়েছে!" : "Vote recorded!");
+      },
+      onError: () =>
+        toast.error(lang === "bn" ? "ভোট দিতে ব্যর্থ" : "Failed to vote"),
+    });
+  };
 
   const isWishlisted = wishlist.some((wid) => wid === productId);
   const inCart = cartItems.some((c) => c.productId === productId);
@@ -1680,6 +1719,9 @@ export default function ProductPage() {
                       key={review.id.toString()}
                       review={review}
                       index={idx}
+                      lang={lang}
+                      votedReviewIds={votedReviewIds}
+                      onVote={handleVoteReview}
                     />
                   ))}
                 </div>

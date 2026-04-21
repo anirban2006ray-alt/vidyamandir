@@ -9,24 +9,28 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Link, useParams } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  Calendar,
   CheckCircle2,
   Circle,
   Clock,
   Download,
   MapPin,
   Package,
+  PackageCheck,
   RefreshCw,
   Truck,
   Wallet,
   XCircle,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useState } from "react";
 import { toast } from "sonner";
 import type { OrderStatus } from "../backend.d.ts";
 import { LoadingSpinner } from "../components/LoadingSpinner";
@@ -40,6 +44,8 @@ import {
 } from "../hooks/useQueries";
 import { formatPrice } from "../lib/i18n";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type StatusConfig = {
   label: string;
   labelBn: string;
@@ -47,10 +53,17 @@ type StatusConfig = {
   dotClass: string;
 };
 
-const STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
+const STATUS_CONFIG: Record<string, StatusConfig> = {
   processing: {
     label: "Processing",
     labelBn: "প্রক্রিয়া চলছে",
+    className:
+      "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40",
+    dotClass: "bg-amber-500",
+  },
+  packed: {
+    label: "Packed",
+    labelBn: "প্যাক করা হয়েছে",
     className:
       "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/40",
     dotClass: "bg-blue-500",
@@ -61,6 +74,13 @@ const STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
     className:
       "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/40",
     dotClass: "bg-purple-500",
+  },
+  outForDelivery: {
+    label: "Out for Delivery",
+    labelBn: "ডেলিভারিতে আছে",
+    className:
+      "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/40",
+    dotClass: "bg-orange-500",
   },
   delivered: {
     label: "Delivered",
@@ -90,39 +110,376 @@ const STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
   },
 };
 
-type TimelineStep = {
-  status: OrderStatus;
-  icon: typeof CheckCircle2;
+// ─── 5-step timeline definition ───────────────────────────────────────────────
+
+type StepDef = {
+  key: string;
+  backendStatus: OrderStatus | null;
+  icon: typeof Package;
   en: string;
   bn: string;
 };
 
-const TIMELINE: TimelineStep[] = [
+const TIMELINE_STEPS: StepDef[] = [
   {
-    status: "processing" as OrderStatus,
+    key: "placed",
+    backendStatus: "processing" as OrderStatus,
     icon: Package,
     en: "Order Placed",
     bn: "অর্ডার দেওয়া হয়েছে",
   },
   {
-    status: "shipped" as OrderStatus,
+    key: "packed",
+    backendStatus: null, // no direct OrderStatus — comes from history
+    icon: PackageCheck,
+    en: "Packed",
+    bn: "প্যাক করা হয়েছে",
+  },
+  {
+    key: "shipped",
+    backendStatus: "shipped" as OrderStatus,
     icon: Truck,
     en: "Shipped",
     bn: "পাঠানো হয়েছে",
   },
   {
-    status: "delivered" as OrderStatus,
+    key: "outForDelivery",
+    backendStatus: null,
+    icon: Truck,
+    en: "Out for Delivery",
+    bn: "ডেলিভারিতে আছে",
+  },
+  {
+    key: "delivered",
+    backendStatus: "delivered" as OrderStatus,
     icon: CheckCircle2,
     en: "Delivered",
     bn: "পৌঁছে গেছে",
   },
 ];
 
-const STATUS_ORDER: Record<string, number> = {
+// map backend OrderStatus → step index
+const STATUS_TO_STEP: Record<string, number> = {
   processing: 0,
-  shipped: 1,
-  delivered: 2,
+  shipped: 2,
+  delivered: 4,
 };
+
+function formatStepDate(ts: bigint, locale: string): string {
+  return new Date(Number(ts) / 1_000_000).toLocaleDateString(locale, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatEstDelivery(ts: bigint, lang: "en" | "bn"): string {
+  const date = new Date(Number(ts) / 1_000_000);
+  return date.toLocaleDateString(lang === "bn" ? "bn-IN" : "en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+// ─── Vertical Stepper ─────────────────────────────────────────────────────────
+
+function VerticalStepper({
+  currentStatus,
+  statusHistory,
+  estimatedDeliveryDate,
+  courierNote,
+  lang,
+}: {
+  currentStatus: OrderStatus;
+  statusHistory: Array<{
+    status: OrderStatus;
+    timestamp: bigint;
+    note: string;
+  }>;
+  estimatedDeliveryDate?: bigint;
+  courierNote?: string;
+  lang: "en" | "bn";
+}) {
+  const locale = lang === "bn" ? "bn-IN" : "en-IN";
+  const currentStepIdx = STATUS_TO_STEP[currentStatus] ?? 0;
+
+  // Build a map from step key → matching history entry
+  const historyByStepKey: Record<string, { timestamp: bigint; note: string }> =
+    {};
+  for (const entry of statusHistory) {
+    const stepIdx = STATUS_TO_STEP[entry.status];
+    if (stepIdx !== undefined) {
+      const stepKey = TIMELINE_STEPS[stepIdx]?.key;
+      if (stepKey)
+        historyByStepKey[stepKey] = {
+          timestamp: entry.timestamp,
+          note: entry.note,
+        };
+    }
+  }
+
+  return (
+    <div className="space-y-4" data-ocid="order_detail.timeline">
+      <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+        {lang === "bn" ? "ডেলিভারি স্ট্যাটাস" : "Delivery Status"}
+      </h2>
+
+      <div className="relative pl-10">
+        {/* Vertical connector */}
+        <div
+          className="absolute left-[18px] top-4 bottom-4 w-0.5"
+          style={{ background: "oklch(var(--border))" }}
+        />
+        {/* Progress fill */}
+        <div
+          className="absolute left-[18px] top-4 w-0.5 transition-all duration-700"
+          style={{
+            background: "oklch(0.72 0.25 40)",
+            height: `${(currentStepIdx / (TIMELINE_STEPS.length - 1)) * 100}%`,
+          }}
+        />
+
+        <div className="space-y-0">
+          {TIMELINE_STEPS.map((step, i) => {
+            const done = i < currentStepIdx;
+            const active = i === currentStepIdx;
+            const future = i > currentStepIdx;
+            const hist = historyByStepKey[step.key];
+            const StepIcon = done ? CheckCircle2 : step.icon;
+
+            return (
+              <motion.div
+                key={step.key}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.07, duration: 0.3 }}
+                className="relative flex items-start gap-4 pb-6 last:pb-0"
+                data-ocid={`order_detail.step.${i + 1}`}
+              >
+                {/* Step icon */}
+                <div
+                  className={`absolute -left-10 w-9 h-9 rounded-full flex items-center justify-center z-10 transition-all duration-300 shrink-0 ${
+                    done
+                      ? "bg-accent text-accent-foreground shadow-elevated"
+                      : active
+                        ? "bg-accent text-accent-foreground ring-4 ring-accent/25 shadow-elevated"
+                        : "bg-card border-2 border-border text-muted-foreground"
+                  }`}
+                >
+                  <StepIcon size={15} />
+                </div>
+
+                {/* Step content */}
+                <div className="flex-1 min-w-0 pt-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p
+                      className={`text-sm font-bold leading-tight ${
+                        active
+                          ? "text-accent"
+                          : done
+                            ? "text-foreground"
+                            : "text-muted-foreground/60"
+                      }`}
+                    >
+                      {lang === "bn" ? step.bn : step.en}
+                    </p>
+                    {active && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-accent/15 text-accent">
+                        {lang === "bn" ? "বর্তমান" : "Current"}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Date & note from history */}
+                  {hist && (
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      {formatStepDate(hist.timestamp, locale)}
+                      {hist.note &&
+                        hist.note !== "Order placed" &&
+                        ` · ${hist.note}`}
+                    </p>
+                  )}
+
+                  {future && (
+                    <p className="text-xs text-muted-foreground/40 mt-0.5">
+                      {lang === "bn" ? "অপেক্ষমাণ" : "Pending"}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Estimated delivery */}
+      {estimatedDeliveryDate && (
+        <div className="mt-4 flex items-center gap-2.5 px-4 py-3 rounded-xl border border-accent/30 bg-accent/8">
+          <Calendar size={15} className="text-accent shrink-0" />
+          <p className="text-sm font-semibold text-accent">
+            {lang === "bn" ? "আনুমানিক ডেলিভারি: " : "Estimated Delivery: "}
+            <span className="font-bold">
+              {formatEstDelivery(estimatedDeliveryDate, lang)}
+            </span>
+          </p>
+        </div>
+      )}
+
+      {/* Courier note */}
+      {courierNote && (
+        <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl border border-border bg-muted/30">
+          <Truck size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <span className="font-semibold text-foreground">
+              {lang === "bn" ? "কুরিয়ার নোট: " : "Courier Note: "}
+            </span>
+            {courierNote}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Admin Status Update Form ─────────────────────────────────────────────────
+
+function AdminStatusForm({
+  orderId,
+  currentStatus,
+}: {
+  orderId: bigint;
+  currentStatus: OrderStatus;
+}) {
+  const [status, setStatus] = useState<OrderStatus>(currentStatus);
+  const [note, setNote] = useState("");
+  const [estDate, setEstDate] = useState("");
+  const [courierNote, setCourierNote] = useState("");
+  const { mutate: updateStatus, isPending } = useUpdateOrderStatus();
+
+  const ADMIN_STATUSES: Array<{ value: OrderStatus; label: string }> = [
+    { value: "processing" as OrderStatus, label: "Processing" },
+    { value: "shipped" as OrderStatus, label: "Shipped" },
+    { value: "delivered" as OrderStatus, label: "Delivered" },
+    { value: "cancelled" as OrderStatus, label: "Cancelled" },
+    { value: "refundRequested" as OrderStatus, label: "Refund Requested" },
+    { value: "refunded" as OrderStatus, label: "Refunded" },
+  ];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const estDeliveryBigInt = estDate
+      ? BigInt(new Date(estDate).getTime()) * BigInt(1_000_000)
+      : null;
+    updateStatus(
+      {
+        orderId,
+        status,
+        note: note.trim() || "Status updated by admin",
+        estimatedDeliveryDate: estDeliveryBigInt,
+        courierNote: courierNote.trim() || null,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Order status updated!");
+          setNote("");
+          setEstDate("");
+          setCourierNote("");
+        },
+        onError: () => toast.error("Failed to update status"),
+      },
+    );
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4 pt-4 border-t border-border"
+      data-ocid="order_detail.admin_form"
+    >
+      <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+        Admin: Update Status
+      </h3>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Status select */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+            New Status
+          </Label>
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as OrderStatus)}
+            className="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
+            data-ocid="order_detail.admin_status_select"
+          >
+            {ADMIN_STATUSES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Estimated delivery date */}
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+            Estimated Delivery Date (optional)
+          </Label>
+          <Input
+            type="date"
+            value={estDate}
+            onChange={(e) => setEstDate(e.target.value)}
+            className="h-9 rounded-lg bg-background border-input text-sm"
+            data-ocid="order_detail.admin_est_delivery_input"
+          />
+        </div>
+      </div>
+
+      {/* Courier note */}
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+          Courier Note (optional)
+        </Label>
+        <Input
+          type="text"
+          value={courierNote}
+          onChange={(e) => setCourierNote(e.target.value)}
+          placeholder="e.g. Blue Dart - AWB 123456789"
+          className="h-9 rounded-lg bg-background border-input text-sm"
+          data-ocid="order_detail.admin_courier_note_input"
+        />
+      </div>
+
+      {/* Status note */}
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+          Internal Note (optional)
+        </Label>
+        <Input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="e.g. Picked up from warehouse"
+          className="h-9 rounded-lg bg-background border-input text-sm"
+          data-ocid="order_detail.admin_note_input"
+        />
+      </div>
+
+      <Button
+        type="submit"
+        disabled={isPending}
+        className="cta-primary h-9 px-5 text-sm"
+        data-ocid="order_detail.admin_update_button"
+      >
+        {isPending ? "Updating…" : "Update Status"}
+      </Button>
+    </form>
+  );
+}
+
+// ─── Main Export ──────────────────────────────────────────────────────────────
 
 export default function OrderDetailPage() {
   const { id } = useParams({ from: "/orders/$id" });
@@ -135,6 +492,15 @@ export default function OrderDetailPage() {
   const { mutate: cancelOrder, isPending: isCancelling } = useCancelOrder();
   const { mutate: updateStatus, isPending: isRefundPending } =
     useUpdateOrderStatus();
+
+  // Admin gate — simple frontend check (dev/owner only)
+  const [isAdmin] = useState(() => {
+    try {
+      return sessionStorage.getItem("adminUnlocked") === "true";
+    } catch {
+      return false;
+    }
+  });
 
   const handleDownloadInvoice = () => {
     downloadInvoice(orderId, {
@@ -171,6 +537,8 @@ export default function OrderDetailPage() {
         orderId,
         status: "refundRequested" as OrderStatus,
         note: "Refund requested by customer",
+        estimatedDeliveryDate: null,
+        courierNote: null,
       },
       {
         onSuccess: () =>
@@ -224,13 +592,19 @@ export default function OrderDetailPage() {
   }
 
   const cfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.processing;
-  const currentStepIdx = STATUS_ORDER[order.status] ?? -1;
   const isActiveOrder = !["cancelled", "refundRequested", "refunded"].includes(
     order.status,
   );
   const canCancel = order.status === ("processing" as OrderStatus);
   const canRefund = order.status === ("delivered" as OrderStatus);
   const orderDate = new Date(Number(order.createdAt) / 1_000_000);
+
+  // Build status history — use the actual StatusUpdate shape from backend
+  const statusHistory = (order.statusHistory ?? []).map((h) => ({
+    status: h.status,
+    timestamp: h.updatedAt,
+    note: h.note,
+  }));
 
   return (
     <div className="bg-muted/20 min-h-screen" data-ocid="order_detail.page">
@@ -258,7 +632,6 @@ export default function OrderDetailPage() {
                 <span className="font-mono text-accent text-base font-bold">
                   #{id}
                 </span>
-                {/* Status pill */}
                 <span
                   className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${cfg.className}`}
                 >
@@ -308,71 +681,28 @@ export default function OrderDetailPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.07 }}
             className="card-elevation p-5"
-            data-ocid="order_detail.timeline"
           >
-            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-6">
-              {lang === "bn" ? "ডেলিভারি স্ট্যাটাস" : "Delivery Status"}
-            </h2>
-            <div className="relative">
-              {/* connector line */}
-              <div className="absolute top-4 left-4 right-4 h-0.5 bg-border" />
-              <div
-                className="absolute top-4 left-4 h-0.5 bg-accent transition-all duration-700"
-                style={{
-                  width:
-                    currentStepIdx < 0
-                      ? "0%"
-                      : `${(currentStepIdx / (TIMELINE.length - 1)) * 100}%`,
-                }}
-              />
-              <div className="relative flex justify-between">
-                {TIMELINE.map((step, i) => {
-                  const done = i < currentStepIdx;
-                  const active = i === currentStepIdx;
-                  const StepIcon = done
-                    ? CheckCircle2
-                    : active
-                      ? step.icon
-                      : Circle;
-                  return (
-                    <div
-                      key={step.status}
-                      className="flex flex-col items-center gap-2"
-                    >
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center z-10 transition-all duration-300 ${
-                          done
-                            ? "bg-accent text-accent-foreground shadow-elevated"
-                            : active
-                              ? "bg-accent text-accent-foreground ring-4 ring-accent/25 shadow-elevated"
-                              : "bg-card border-2 border-border text-muted-foreground"
-                        }`}
-                      >
-                        <StepIcon size={16} />
-                      </div>
-                      <div className="text-center">
-                        <p
-                          className={`text-xs font-semibold ${
-                            active
-                              ? "text-accent"
-                              : done
-                                ? "text-foreground"
-                                : "text-muted-foreground"
-                          }`}
-                        >
-                          {lang === "bn" ? step.bn : step.en}
-                        </p>
-                        {active && (
-                          <p className="text-[10px] text-accent/70 mt-0.5">
-                            {lang === "bn" ? "বর্তমান" : "Current"}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <VerticalStepper
+              currentStatus={order.status}
+              statusHistory={statusHistory}
+              estimatedDeliveryDate={
+                order.estimatedDeliveryDate !== undefined &&
+                order.estimatedDeliveryDate !== null
+                  ? (order.estimatedDeliveryDate as bigint)
+                  : undefined
+              }
+              courierNote={
+                order.courierNote !== undefined && order.courierNote !== null
+                  ? (order.courierNote as string)
+                  : undefined
+              }
+              lang={lang}
+            />
+
+            {/* Admin update form */}
+            {isAdmin && (
+              <AdminStatusForm orderId={orderId} currentStatus={order.status} />
+            )}
           </motion.div>
         )}
 
@@ -567,7 +897,7 @@ export default function OrderDetailPage() {
             type="button"
             onClick={handleDownloadInvoice}
             disabled={isDownloading}
-            data-ocid="order_detail.download_invoice_button"
+            data-ocid="order_detail.download_invoice_button_mobile"
             className="sm:hidden btn-secondary flex items-center justify-center gap-2 h-11"
           >
             <Download size={15} />
