@@ -44,6 +44,18 @@ export interface AdminAnalytics {
   'totalUsers' : bigint,
   'totalRevenueInPaisa' : bigint,
 }
+export interface AdminReviewView {
+  'id' : ReviewId,
+  'isApproved' : boolean,
+  'userId' : UserId,
+  'createdAt' : Timestamp,
+  'bodyEn' : string,
+  'productId' : ProductId,
+  'isVerifiedPurchase' : boolean,
+  'rating' : bigint,
+  'helpfulVotes' : bigint,
+  'titleEn' : string,
+}
 export interface Answer {
   'id' : AnswerId,
   'createdAt' : Timestamp,
@@ -174,6 +186,12 @@ export type OrderStatus = { 'shipped' : null } |
   { 'refunded' : null } |
   { 'delivered' : null } |
   { 'processing' : null };
+export interface OrderedQuantityItem {
+  'totalOrdered' : bigint,
+  'productTitle' : string,
+  'productId' : ProductId,
+  'totalRevenue' : bigint,
+}
 export interface ProductFilter {
   'minRating' : [] | [number],
   'inStockOnly' : boolean,
@@ -221,6 +239,13 @@ export interface PromoCode {
   'validUntil' : Timestamp,
 }
 export type PromoCodeId = bigint;
+export interface PromoCodeUpdateRequest {
+  'maxUsageCount' : [] | [bigint],
+  'discountPercent' : [] | [bigint],
+  'isActive' : [] | [boolean],
+  'minSpendInPaisa' : [] | [bigint],
+  'validUntil' : [] | [Timestamp],
+}
 export interface Question {
   'id' : QuestionId,
   'createdAt' : Timestamp,
@@ -324,6 +349,16 @@ export interface _SERVICE {
     { 'ok' : null } |
       { 'err' : AppError }
   >,
+  'adminApproveReview' : ActorMethod<
+    [ReviewId, boolean],
+    { 'ok' : boolean } |
+      { 'err' : AppError }
+  >,
+  'adminDeleteReview' : ActorMethod<
+    [ReviewId],
+    { 'ok' : boolean } |
+      { 'err' : AppError }
+  >,
   'askQuestion' : ActorMethod<
     [ProductId, string],
     { 'ok' : QuestionId } |
@@ -367,6 +402,10 @@ export interface _SERVICE {
   'getCart' : ActorMethod<[], Array<CartItem>>,
   'getFlashSale' : ActorMethod<[FlashSaleId], [] | [FlashSaleView]>,
   'getOrder' : ActorMethod<[OrderId], [] | [Order]>,
+  'getOrderedQuantityReport' : ActorMethod<
+    [[] | [bigint], [] | [bigint]],
+    Array<OrderedQuantityItem>
+  >,
   'getProduct' : ActorMethod<[ProductId], [] | [ProductView]>,
   'getRecentlyViewed' : ActorMethod<[], Array<ProductView>>,
   'getReview' : ActorMethod<[ReviewId], [] | [Review]>,
@@ -378,6 +417,8 @@ export interface _SERVICE {
   'listAddresses' : ActorMethod<[], Array<Address>>,
   'listAllEnquiries' : ActorMethod<[], Array<Enquiry>>,
   'listAllOrders' : ActorMethod<[bigint, bigint], Array<Order>>,
+  'listAllReturns' : ActorMethod<[], Array<Order>>,
+  'listAllReviews' : ActorMethod<[], Array<AdminReviewView>>,
   'listAnswers' : ActorMethod<[QuestionId], Array<Answer>>,
   'listFlashSales' : ActorMethod<[boolean], Array<FlashSaleView>>,
   'listMyOrders' : ActorMethod<[], Array<Order>>,
@@ -385,6 +426,7 @@ export interface _SERVICE {
     [[] | [ProductFilter], [] | [ProductSort], bigint, bigint],
     Array<ProductView>
   >,
+  'listPromoCodes' : ActorMethod<[], Array<PromoCode>>,
   'listQuestions' : ActorMethod<[ProductId], Array<Question>>,
   'listReviews' : ActorMethod<[ProductId], Array<Review>>,
   'listReviewsSorted' : ActorMethod<
@@ -435,6 +477,11 @@ export interface _SERVICE {
   >,
   'updateProduct' : ActorMethod<
     [UpdateProductInput],
+    { 'ok' : boolean } |
+      { 'err' : AppError }
+  >,
+  'updatePromoCode' : ActorMethod<
+    [string, PromoCodeUpdateRequest],
     { 'ok' : boolean } |
       { 'err' : AppError }
   >,

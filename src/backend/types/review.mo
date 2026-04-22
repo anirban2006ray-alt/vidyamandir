@@ -23,6 +23,19 @@ module {
     bodyEn : Text;
   };
 
+  public type AdminReviewView = {
+    id : Common.ReviewId;
+    productId : Common.ProductId;
+    userId : Common.UserId;
+    rating : Nat;
+    titleEn : Text;
+    bodyEn : Text;
+    isVerifiedPurchase : Bool;
+    helpfulVotes : Nat;
+    isApproved : Bool;
+    createdAt : Common.Timestamp;
+  };
+
   public type Question = {
     id : Common.QuestionId;
     productId : Common.ProductId;
@@ -53,6 +66,7 @@ module {
     isVerifiedPurchase : Bool;
     helpfulVotes : Nat;
     helpfulVoters : Set.Set<Common.UserId>; // principals who have voted
+    isApproved : Bool; // admin moderation flag
     createdAt : Common.Timestamp;
   };
 

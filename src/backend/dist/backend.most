@@ -106,64 +106,19 @@ type Node__46230540<K, V> =
   {#internal : Internal__8484328<K, V>; #leaf : Leaf__809889148<K, V>};
 type Node__92254746<T> =
   {#internal : Internal__667636161<T>; #leaf : Leaf__520550824<T>};
-type OldAddressId__905395182 = Nat;
-type OldAddress__1053488244 =
+type OldReviewInternal__233930517 =
   {
-    city : Text;
-    createdAt : OldTimestamp__27916213;
-    district : Text;
-    fullName : Text;
-    id : OldAddressId__905395182;
-    isDefault : Bool;
-    line1 : Text;
-    line2 : Text;
-    phone : Text;
-    pincode : Text;
-    state : Text;
-    userId : OldUserId__580276348
+    bodyEn : Text;
+    createdAt : Timestamp__301639476;
+    helpfulVoters : Set__532252804<UserId__158757552>;
+    helpfulVotes : Nat;
+    id : ReviewId__496285678;
+    isVerifiedPurchase : Bool;
+    productId : ProductId__160010635;
+    rating : Nat;
+    titleEn : Text;
+    userId : UserId__158757552
   };
-type OldOrderId__1043857103 = Nat;
-type OldOrderItem__518217749 =
-  {
-    priceInPaisa : Nat;
-    productId : OldProductId__233768222;
-    quantity : Nat;
-    titleEn : Text
-  };
-type OldOrderStatus__13175761 =
-  {
-    #cancelled;
-    #delivered;
-    #processing;
-    #refundRequested;
-    #refunded;
-    #shipped
-  };
-type OldOrder__235915581 =
-  {
-    createdAt : OldTimestamp__27916213;
-    discountInPaisa : Nat;
-    id : OldOrderId__1043857103;
-    idempotencyKey : Text;
-    items : [OldOrderItem__518217749];
-    promoCodeApplied : ?Text;
-    shippingAddress : OldAddress__1053488244;
-    status : OldOrderStatus__13175761;
-    statusHistory : [OldStatusUpdate__1048464772];
-    stripePaymentIntentId : Text;
-    totalInPaisa : Nat;
-    updatedAt : OldTimestamp__27916213;
-    userId : OldUserId__580276348
-  };
-type OldProductId__233768222 = Nat;
-type OldStatusUpdate__1048464772 =
-  {
-    note : Text;
-    status : OldOrderStatus__13175761;
-    updatedAt : OldTimestamp__27916213
-  };
-type OldTimestamp__27916213 = Int;
-type OldUserId__580276348 = Principal;
 type OrderId__197865225 = Nat;
 type OrderItem__970180480 =
   {
@@ -257,6 +212,7 @@ type ReviewInternal__542788455 =
     helpfulVoters : Set__532252804<UserId__158757552>;
     helpfulVotes : Nat;
     id : ReviewId__496285678;
+    isApproved : Bool;
     isVerifiedPurchase : Bool;
     productId : ProductId__160010635;
     rating : Nat;
@@ -329,7 +285,11 @@ actor ({
   stable nextPromoCodeId : [var Nat];
   stable nextQuestionId : [var Nat];
   stable nextReviewId : [var Nat];
-  in orders : Map__605269027<OldOrderId__1043857103, OldOrder__235915581>;
+  stable orders :
+    {
+      var root : Node__46230540<OrderId__197865225, Order__720360493>;
+      var size : Nat__490723111
+    };
   stable products :
     {
       var root : Node__46230540<ProductId__160010635, Product__389207432>;
@@ -364,12 +324,8 @@ actor ({
                         List__415060402<ProductId__160010635>>;
       var size : Nat__490723111
     };
-  stable reviews :
-    {
-      var root :
-        Node__46230540<ReviewId__496285678, ReviewInternal__542788455>;
-      var size : Nat__490723111
-    };
+  in reviews :
+    Map__605269027<ReviewId__496285678, OldReviewInternal__233930517>;
   stable var stripeConfiguration : ?StripeConfiguration__96897619;
   stable wishlists :
     {

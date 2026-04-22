@@ -111,6 +111,8 @@ export const mockBackend: backendInterface = {
   createFlashSale: async () => BigInt(1),
   createOrder: async () => ({ __kind__: "ok" as const, ok: BigInt(1) }),
   createProduct: async () => ({ __kind__: "ok" as const, ok: BigInt(4) }),
+  adminApproveReview: async () => ({ __kind__: "ok" as const, ok: true }),
+  adminDeleteReview: async () => ({ __kind__: "ok" as const, ok: true }),
   createPromoCode: async () => ({ __kind__: "ok" as const, ok: BigInt(1) }),
   createReview: async () => ({ __kind__: "ok" as const, ok: BigInt(1) }),
   deactivateFlashSale: async () => true,
@@ -177,6 +179,10 @@ export const mockBackend: backendInterface = {
     stripePaymentIntentId: "pi_mock_123",
     items: [{ priceInPaisa: BigInt(35000), productId: BigInt(1), quantity: BigInt(1), titleEn: "Pather Panchali" }],
   }),
+  getOrderedQuantityReport: async () => [
+    { productId: BigInt(1), productTitle: "Pather Panchali", totalOrdered: BigInt(12), totalRevenue: BigInt(300000) },
+    { productId: BigInt(2), productTitle: "Feluda Vol 1", totalOrdered: BigInt(8), totalRevenue: BigInt(360000) },
+  ],
   getProduct: async () => sampleProduct,
   getRecentlyViewed: async () => [sampleProduct2, sampleProduct3],
   getReview: async () => ({
@@ -258,6 +264,21 @@ export const mockBackend: backendInterface = {
   }],
   submitEnquiry: async () => ({ __kind__: "ok" as const, ok: "mock-enquiry-id" }),
   updateEnquiryStatus: async () => true,
+  listAllReturns: async () => [],
+  listAllReviews: async () => [
+    {
+      id: BigInt(1),
+      userId: { toText: () => "mock-user" } as any,
+      createdAt: BigInt(Date.now() - 5 * 86400000),
+      bodyEn: "A fantastic read! The writing is beautiful.",
+      productId: BigInt(1),
+      isVerifiedPurchase: true,
+      isApproved: true,
+      rating: BigInt(5),
+      helpfulVotes: BigInt(12),
+      titleEn: "Classic masterpiece",
+    },
+  ],
   listAnswers: async () => [
     {
       id: BigInt(1),
@@ -303,6 +324,20 @@ export const mockBackend: backendInterface = {
     items: [{ priceInPaisa: BigInt(35000), productId: BigInt(1), quantity: BigInt(1), titleEn: "Pather Panchali" }],
   }],
   listProducts: async () => [sampleProduct, sampleProduct2, sampleProduct3],
+  listPromoCodes: async () => [
+    {
+      id: BigInt(1),
+      code: "VIDYA10",
+      discountPercent: BigInt(10),
+      maxUsageCount: BigInt(100),
+      usageCount: BigInt(5),
+      minSpendInPaisa: BigInt(50000),
+      validFrom: BigInt(Date.now() - 30 * 86400000),
+      validUntil: BigInt(Date.now() + 60 * 86400000),
+      isActive: true,
+      createdAt: BigInt(Date.now() - 30 * 86400000),
+    },
+  ],
   listQuestions: async () => [
     {
       id: BigInt(1),
@@ -362,6 +397,7 @@ export const mockBackend: backendInterface = {
   updateCartQuantity: async () => ({ __kind__: "ok" as const, ok: null }),
   updateOrderStatus: async () => true,
   updateProduct: async () => ({ __kind__: "ok" as const, ok: true }),
+  updatePromoCode: async () => ({ __kind__: "ok" as const, ok: true }),
   updateStock: async () => true,
   validatePromoCode: async () => null,
   voteAnswerHelpful: async () => ({ __kind__: "ok" as const, ok: true }),

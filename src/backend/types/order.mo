@@ -87,6 +87,21 @@ module {
     createdAt : Common.Timestamp;
   };
 
+  public type PromoCodeUpdateRequest = {
+    discountPercent : ?Nat;
+    maxUsageCount : ?Nat;
+    minSpendInPaisa : ?Nat;
+    validUntil : ?Common.Timestamp;
+    isActive : ?Bool;
+  };
+
+  public type OrderedQuantityItem = {
+    productId : Common.ProductId;
+    productTitle : Text;
+    totalOrdered : Nat;
+    totalRevenue : Nat; // in paisa
+  };
+
   public type PromoValidation = {
     #ok : PromoCode;
     #notFound;

@@ -32,6 +32,7 @@ export const AppError = IDL.Variant({
   'alreadyReviewed' : IDL.Null,
 });
 export const ProductId = IDL.Nat;
+export const ReviewId = IDL.Nat;
 export const QuestionId = IDL.Nat;
 export const UserRole = IDL.Variant({
   'admin' : IDL.Null,
@@ -119,7 +120,6 @@ export const CreateReviewInput = IDL.Record({
   'rating' : IDL.Nat,
   'titleEn' : IDL.Text,
 });
-export const ReviewId = IDL.Nat;
 export const AdminAnalytics = IDL.Record({
   'totalProducts' : IDL.Nat,
   'totalOrders' : IDL.Nat,
@@ -200,6 +200,12 @@ export const Order = IDL.Record({
   'stripePaymentIntentId' : IDL.Text,
   'items' : IDL.Vec(OrderItem),
 });
+export const OrderedQuantityItem = IDL.Record({
+  'totalOrdered' : IDL.Nat,
+  'productTitle' : IDL.Text,
+  'productId' : ProductId,
+  'totalRevenue' : IDL.Nat,
+});
 export const ProductView = IDL.Record({
   'id' : ProductId,
   'coverImageUrl' : IDL.Text,
@@ -247,6 +253,18 @@ export const Enquiry = IDL.Record({
   'message' : IDL.Text,
   'phone' : IDL.Text,
 });
+export const AdminReviewView = IDL.Record({
+  'id' : ReviewId,
+  'isApproved' : IDL.Bool,
+  'userId' : UserId,
+  'createdAt' : Timestamp,
+  'bodyEn' : IDL.Text,
+  'productId' : ProductId,
+  'isVerifiedPurchase' : IDL.Bool,
+  'rating' : IDL.Nat,
+  'helpfulVotes' : IDL.Nat,
+  'titleEn' : IDL.Text,
+});
 export const AnswerId = IDL.Nat;
 export const Answer = IDL.Record({
   'id' : AnswerId,
@@ -275,6 +293,18 @@ export const SortOrder = IDL.Variant({ 'asc' : IDL.Null, 'desc' : IDL.Null });
 export const ProductSort = IDL.Record({
   'field' : SortField,
   'order' : SortOrder,
+});
+export const PromoCode = IDL.Record({
+  'id' : PromoCodeId,
+  'validFrom' : Timestamp,
+  'code' : IDL.Text,
+  'maxUsageCount' : IDL.Opt(IDL.Nat),
+  'createdAt' : Timestamp,
+  'usageCount' : IDL.Nat,
+  'discountPercent' : IDL.Nat,
+  'isActive' : IDL.Bool,
+  'minSpendInPaisa' : IDL.Nat,
+  'validUntil' : Timestamp,
 });
 export const Question = IDL.Record({
   'id' : QuestionId,
@@ -317,17 +347,12 @@ export const UpdateProductInput = IDL.Record({
   'genre' : IDL.Opt(Genre),
   'publicationDate' : IDL.Opt(Timestamp),
 });
-export const PromoCode = IDL.Record({
-  'id' : PromoCodeId,
-  'validFrom' : Timestamp,
-  'code' : IDL.Text,
+export const PromoCodeUpdateRequest = IDL.Record({
   'maxUsageCount' : IDL.Opt(IDL.Nat),
-  'createdAt' : Timestamp,
-  'usageCount' : IDL.Nat,
-  'discountPercent' : IDL.Nat,
-  'isActive' : IDL.Bool,
-  'minSpendInPaisa' : IDL.Nat,
-  'validUntil' : Timestamp,
+  'discountPercent' : IDL.Opt(IDL.Nat),
+  'isActive' : IDL.Opt(IDL.Bool),
+  'minSpendInPaisa' : IDL.Opt(IDL.Nat),
+  'validUntil' : IDL.Opt(Timestamp),
 });
 
 export const idlService = IDL.Service({
@@ -345,6 +370,16 @@ export const idlService = IDL.Service({
   'addToWishlist' : IDL.Func(
       [ProductId],
       [IDL.Variant({ 'ok' : IDL.Null, 'err' : AppError })],
+      [],
+    ),
+  'adminApproveReview' : IDL.Func(
+      [ReviewId, IDL.Bool],
+      [IDL.Variant({ 'ok' : IDL.Bool, 'err' : AppError })],
+      [],
+    ),
+  'adminDeleteReview' : IDL.Func(
+      [ReviewId],
+      [IDL.Variant({ 'ok' : IDL.Bool, 'err' : AppError })],
       [],
     ),
   'askQuestion' : IDL.Func(
@@ -391,6 +426,11 @@ export const idlService = IDL.Service({
   'getCart' : IDL.Func([], [IDL.Vec(CartItem)], ['query']),
   'getFlashSale' : IDL.Func([FlashSaleId], [IDL.Opt(FlashSaleView)], ['query']),
   'getOrder' : IDL.Func([OrderId], [IDL.Opt(Order)], ['query']),
+  'getOrderedQuantityReport' : IDL.Func(
+      [IDL.Opt(IDL.Int), IDL.Opt(IDL.Int)],
+      [IDL.Vec(OrderedQuantityItem)],
+      ['query'],
+    ),
   'getProduct' : IDL.Func([ProductId], [IDL.Opt(ProductView)], ['query']),
   'getRecentlyViewed' : IDL.Func([], [IDL.Vec(ProductView)], ['query']),
   'getReview' : IDL.Func([ReviewId], [IDL.Opt(Review)], ['query']),
@@ -402,6 +442,8 @@ export const idlService = IDL.Service({
   'listAddresses' : IDL.Func([], [IDL.Vec(Address)], ['query']),
   'listAllEnquiries' : IDL.Func([], [IDL.Vec(Enquiry)], ['query']),
   'listAllOrders' : IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(Order)], ['query']),
+  'listAllReturns' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+  'listAllReviews' : IDL.Func([], [IDL.Vec(AdminReviewView)], ['query']),
   'listAnswers' : IDL.Func([QuestionId], [IDL.Vec(Answer)], ['query']),
   'listFlashSales' : IDL.Func([IDL.Bool], [IDL.Vec(FlashSaleView)], ['query']),
   'listMyOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
@@ -410,6 +452,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(ProductView)],
       ['query'],
     ),
+  'listPromoCodes' : IDL.Func([], [IDL.Vec(PromoCode)], ['query']),
   'listQuestions' : IDL.Func([ProductId], [IDL.Vec(Question)], ['query']),
   'listReviews' : IDL.Func([ProductId], [IDL.Vec(Review)], ['query']),
   'listReviewsSorted' : IDL.Func(
@@ -475,6 +518,11 @@ export const idlService = IDL.Service({
       [IDL.Variant({ 'ok' : IDL.Bool, 'err' : AppError })],
       [],
     ),
+  'updatePromoCode' : IDL.Func(
+      [IDL.Text, PromoCodeUpdateRequest],
+      [IDL.Variant({ 'ok' : IDL.Bool, 'err' : AppError })],
+      [],
+    ),
   'updateStock' : IDL.Func([ProductId, IDL.Int], [IDL.Bool], []),
   'validatePromoCode' : IDL.Func([IDL.Text], [IDL.Opt(PromoCode)], ['query']),
   'voteAnswerHelpful' : IDL.Func(
@@ -516,6 +564,7 @@ export const idlFactory = ({ IDL }) => {
     'alreadyReviewed' : IDL.Null,
   });
   const ProductId = IDL.Nat;
+  const ReviewId = IDL.Nat;
   const QuestionId = IDL.Nat;
   const UserRole = IDL.Variant({
     'admin' : IDL.Null,
@@ -603,7 +652,6 @@ export const idlFactory = ({ IDL }) => {
     'rating' : IDL.Nat,
     'titleEn' : IDL.Text,
   });
-  const ReviewId = IDL.Nat;
   const AdminAnalytics = IDL.Record({
     'totalProducts' : IDL.Nat,
     'totalOrders' : IDL.Nat,
@@ -684,6 +732,12 @@ export const idlFactory = ({ IDL }) => {
     'stripePaymentIntentId' : IDL.Text,
     'items' : IDL.Vec(OrderItem),
   });
+  const OrderedQuantityItem = IDL.Record({
+    'totalOrdered' : IDL.Nat,
+    'productTitle' : IDL.Text,
+    'productId' : ProductId,
+    'totalRevenue' : IDL.Nat,
+  });
   const ProductView = IDL.Record({
     'id' : ProductId,
     'coverImageUrl' : IDL.Text,
@@ -731,6 +785,18 @@ export const idlFactory = ({ IDL }) => {
     'message' : IDL.Text,
     'phone' : IDL.Text,
   });
+  const AdminReviewView = IDL.Record({
+    'id' : ReviewId,
+    'isApproved' : IDL.Bool,
+    'userId' : UserId,
+    'createdAt' : Timestamp,
+    'bodyEn' : IDL.Text,
+    'productId' : ProductId,
+    'isVerifiedPurchase' : IDL.Bool,
+    'rating' : IDL.Nat,
+    'helpfulVotes' : IDL.Nat,
+    'titleEn' : IDL.Text,
+  });
   const AnswerId = IDL.Nat;
   const Answer = IDL.Record({
     'id' : AnswerId,
@@ -757,6 +823,18 @@ export const idlFactory = ({ IDL }) => {
   });
   const SortOrder = IDL.Variant({ 'asc' : IDL.Null, 'desc' : IDL.Null });
   const ProductSort = IDL.Record({ 'field' : SortField, 'order' : SortOrder });
+  const PromoCode = IDL.Record({
+    'id' : PromoCodeId,
+    'validFrom' : Timestamp,
+    'code' : IDL.Text,
+    'maxUsageCount' : IDL.Opt(IDL.Nat),
+    'createdAt' : Timestamp,
+    'usageCount' : IDL.Nat,
+    'discountPercent' : IDL.Nat,
+    'isActive' : IDL.Bool,
+    'minSpendInPaisa' : IDL.Nat,
+    'validUntil' : Timestamp,
+  });
   const Question = IDL.Record({
     'id' : QuestionId,
     'createdAt' : Timestamp,
@@ -795,17 +873,12 @@ export const idlFactory = ({ IDL }) => {
     'genre' : IDL.Opt(Genre),
     'publicationDate' : IDL.Opt(Timestamp),
   });
-  const PromoCode = IDL.Record({
-    'id' : PromoCodeId,
-    'validFrom' : Timestamp,
-    'code' : IDL.Text,
+  const PromoCodeUpdateRequest = IDL.Record({
     'maxUsageCount' : IDL.Opt(IDL.Nat),
-    'createdAt' : Timestamp,
-    'usageCount' : IDL.Nat,
-    'discountPercent' : IDL.Nat,
-    'isActive' : IDL.Bool,
-    'minSpendInPaisa' : IDL.Nat,
-    'validUntil' : Timestamp,
+    'discountPercent' : IDL.Opt(IDL.Nat),
+    'isActive' : IDL.Opt(IDL.Bool),
+    'minSpendInPaisa' : IDL.Opt(IDL.Nat),
+    'validUntil' : IDL.Opt(Timestamp),
   });
   
   return IDL.Service({
@@ -823,6 +896,16 @@ export const idlFactory = ({ IDL }) => {
     'addToWishlist' : IDL.Func(
         [ProductId],
         [IDL.Variant({ 'ok' : IDL.Null, 'err' : AppError })],
+        [],
+      ),
+    'adminApproveReview' : IDL.Func(
+        [ReviewId, IDL.Bool],
+        [IDL.Variant({ 'ok' : IDL.Bool, 'err' : AppError })],
+        [],
+      ),
+    'adminDeleteReview' : IDL.Func(
+        [ReviewId],
+        [IDL.Variant({ 'ok' : IDL.Bool, 'err' : AppError })],
         [],
       ),
     'askQuestion' : IDL.Func(
@@ -873,6 +956,11 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getOrder' : IDL.Func([OrderId], [IDL.Opt(Order)], ['query']),
+    'getOrderedQuantityReport' : IDL.Func(
+        [IDL.Opt(IDL.Int), IDL.Opt(IDL.Int)],
+        [IDL.Vec(OrderedQuantityItem)],
+        ['query'],
+      ),
     'getProduct' : IDL.Func([ProductId], [IDL.Opt(ProductView)], ['query']),
     'getRecentlyViewed' : IDL.Func([], [IDL.Vec(ProductView)], ['query']),
     'getReview' : IDL.Func([ReviewId], [IDL.Opt(Review)], ['query']),
@@ -884,6 +972,8 @@ export const idlFactory = ({ IDL }) => {
     'listAddresses' : IDL.Func([], [IDL.Vec(Address)], ['query']),
     'listAllEnquiries' : IDL.Func([], [IDL.Vec(Enquiry)], ['query']),
     'listAllOrders' : IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(Order)], ['query']),
+    'listAllReturns' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+    'listAllReviews' : IDL.Func([], [IDL.Vec(AdminReviewView)], ['query']),
     'listAnswers' : IDL.Func([QuestionId], [IDL.Vec(Answer)], ['query']),
     'listFlashSales' : IDL.Func(
         [IDL.Bool],
@@ -896,6 +986,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(ProductView)],
         ['query'],
       ),
+    'listPromoCodes' : IDL.Func([], [IDL.Vec(PromoCode)], ['query']),
     'listQuestions' : IDL.Func([ProductId], [IDL.Vec(Question)], ['query']),
     'listReviews' : IDL.Func([ProductId], [IDL.Vec(Review)], ['query']),
     'listReviewsSorted' : IDL.Func(
@@ -958,6 +1049,11 @@ export const idlFactory = ({ IDL }) => {
       ),
     'updateProduct' : IDL.Func(
         [UpdateProductInput],
+        [IDL.Variant({ 'ok' : IDL.Bool, 'err' : AppError })],
+        [],
+      ),
+    'updatePromoCode' : IDL.Func(
+        [IDL.Text, PromoCodeUpdateRequest],
         [IDL.Variant({ 'ok' : IDL.Bool, 'err' : AppError })],
         [],
       ),

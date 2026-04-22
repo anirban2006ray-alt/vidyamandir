@@ -1,95 +1,45 @@
 import Map "mo:core/Map";
-import List "mo:core/List";
 import Set "mo:core/Set";
-import Principal "mo:core/Principal";
-import NewOrderTypes "types/order";
-import NewEnquiryTypes "types/enquiry";
+import List "mo:core/List";
+import ReviewTypes "types/review";
+import Common "types/common";
 
+/// Migration: add `isApproved` field to every ReviewInternal record.
+/// All existing reviews default to approved = true so they remain visible.
 module {
-  // ── Old type definitions (copied from .old/src/backend/types/order.mo) ─────
+  // ── Old types (inline copy from .old/src/backend/types/review.mo) ────────
 
-  type OldTimestamp = Int;
-  type OldUserId = Principal;
-  type OldProductId = Nat;
-  type OldOrderId = Nat;
-  type OldAddressId = Nat;
-  type OldPromoCodeId = Nat;
-
-  type OldOrderStatus = {
-    #processing;
-    #shipped;
-    #delivered;
-    #cancelled;
-    #refundRequested;
-    #refunded;
-  };
-
-  type OldOrderItem = {
-    productId : OldProductId;
-    quantity : Nat;
-    priceInPaisa : Nat;
+  type OldReviewInternal = {
+    id : Common.ReviewId;
+    productId : Common.ProductId;
+    userId : Common.UserId;
+    rating : Nat;
     titleEn : Text;
+    bodyEn : Text;
+    isVerifiedPurchase : Bool;
+    helpfulVotes : Nat;
+    helpfulVoters : Set.Set<Common.UserId>;
+    createdAt : Common.Timestamp;
   };
 
-  type OldAddress = {
-    id : OldAddressId;
-    userId : OldUserId;
-    fullName : Text;
-    phone : Text;
-    line1 : Text;
-    line2 : Text;
-    city : Text;
-    district : Text;
-    state : Text;
-    pincode : Text;
-    isDefault : Bool;
-    createdAt : OldTimestamp;
-  };
-
-  type OldStatusUpdate = {
-    status : OldOrderStatus;
-    updatedAt : OldTimestamp;
-    note : Text;
-  };
-
-  type OldOrder = {
-    id : OldOrderId;
-    userId : OldUserId;
-    items : [OldOrderItem];
-    shippingAddress : OldAddress;
-    totalInPaisa : Nat;
-    status : OldOrderStatus;
-    statusHistory : [OldStatusUpdate];
-    stripePaymentIntentId : Text;
-    idempotencyKey : Text;
-    promoCodeApplied : ?Text;
-    discountInPaisa : Nat;
-    createdAt : OldTimestamp;
-    updatedAt : OldTimestamp;
-  };
-
-  // ── Actor state shapes ─────────────────────────────────────────────────────
+  // ── Actor state records ───────────────────────────────────────────────────
 
   type OldActor = {
-    orders : Map.Map<OldOrderId, OldOrder>;
+    reviews : Map.Map<Common.ReviewId, OldReviewInternal>;
   };
 
   type NewActor = {
-    orders : Map.Map<OldOrderId, NewOrderTypes.Order>;
+    reviews : Map.Map<Common.ReviewId, ReviewTypes.ReviewInternal>;
   };
 
-  // ── Migration function ─────────────────────────────────────────────────────
+  // ── Migration function ────────────────────────────────────────────────────
 
   public func run(old : OldActor) : NewActor {
-    let orders = old.orders.map<OldOrderId, OldOrder, NewOrderTypes.Order>(
-      func(_id, o) {
-        {
-          o with
-          estimatedDeliveryDate = null : ?OldTimestamp;
-          courierNote = null : ?Text;
-        };
+    let reviews = old.reviews.map<Common.ReviewId, OldReviewInternal, ReviewTypes.ReviewInternal>(
+      func(_id, r) {
+        { r with isApproved = true };
       }
     );
-    { orders };
+    { reviews };
   };
 };

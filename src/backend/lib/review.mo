@@ -24,6 +24,21 @@ module {
     };
   };
 
+  public func reviewToAdminView(r : ReviewTypes.ReviewInternal) : ReviewTypes.AdminReviewView {
+    {
+      id = r.id;
+      productId = r.productId;
+      userId = r.userId;
+      rating = r.rating;
+      titleEn = r.titleEn;
+      bodyEn = r.bodyEn;
+      isVerifiedPurchase = r.isVerifiedPurchase;
+      helpfulVotes = r.helpfulVotes;
+      isApproved = r.isApproved;
+      createdAt = r.createdAt;
+    };
+  };
+
   public func answerToPublic(a : ReviewTypes.AnswerInternal) : ReviewTypes.Answer {
     {
       id = a.id;
@@ -129,6 +144,7 @@ module {
       isVerifiedPurchase = isVerified;
       helpfulVotes = 0;
       helpfulVoters = Set.empty<Common.UserId>();
+      isApproved = true;
       createdAt = Time.now();
     };
     reviews.add(nextId, review);
@@ -256,6 +272,47 @@ module {
         newVoters.add(voterId);
         answers.add(answerId, { a with helpfulVotes = a.helpfulVotes + 1; helpfulVoters = newVoters });
         #ok(true);
+      };
+    };
+  };
+
+  // ── Admin review management ───────────────────────────────────────────────
+
+  /// List all reviews across all products, sorted by date descending.
+  public func listAllReviews(
+    reviews : Map.Map<Common.ReviewId, ReviewTypes.ReviewInternal>,
+  ) : [ReviewTypes.AdminReviewView] {
+    let all = reviews.entries()
+      .map(func((_, r)) { reviewToAdminView(r) })
+      .toArray();
+    all.sort<ReviewTypes.AdminReviewView>(func(a, b) { Int.compare(b.createdAt, a.createdAt) });
+  };
+
+  /// Delete a review by ID. Returns true if deleted, false if not found.
+  public func adminDeleteReview(
+    reviews : Map.Map<Common.ReviewId, ReviewTypes.ReviewInternal>,
+    reviewId : Common.ReviewId,
+  ) : { #ok : Bool; #err : Common.AppError } {
+    switch (reviews.get(reviewId)) {
+      case null { #err(#notFound) };
+      case (?_) {
+        reviews.remove(reviewId);
+        #ok(true);
+      };
+    };
+  };
+
+  /// Toggle the isApproved flag on a review. Returns the new approved state.
+  public func adminApproveReview(
+    reviews : Map.Map<Common.ReviewId, ReviewTypes.ReviewInternal>,
+    reviewId : Common.ReviewId,
+    approved : Bool,
+  ) : { #ok : Bool; #err : Common.AppError } {
+    switch (reviews.get(reviewId)) {
+      case null { #err(#notFound) };
+      case (?r) {
+        reviews.add(reviewId, { r with isApproved = approved });
+        #ok(approved);
       };
     };
   };

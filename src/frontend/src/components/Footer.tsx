@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Link } from "@tanstack/react-router";
+import { ShieldCheck } from "lucide-react";
 import {
   Facebook,
   Instagram,
@@ -569,6 +570,29 @@ export function Footer() {
               caffeine.ai
             </a>
           </span>
+        </div>
+        {/* Staff Admin link — subtle, developer access */}
+        <div
+          className="max-w-7xl mx-auto mt-3 pt-3 border-t flex justify-center"
+          style={{ borderColor: "oklch(var(--border) / 0.4)" }}
+        >
+          <Link
+            to="/admin"
+            className="inline-flex items-center gap-1.5 text-xs transition-smooth"
+            style={{ color: "oklch(var(--muted-foreground) / 0.4)" }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.color =
+                "oklch(var(--accent))";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.color =
+                "oklch(var(--muted-foreground) / 0.4)";
+            }}
+            data-ocid="footer.staff_admin_link"
+          >
+            <ShieldCheck size={11} />
+            Staff Admin
+          </Link>
         </div>
       </div>
     </footer>

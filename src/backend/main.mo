@@ -6,6 +6,7 @@ import Stripe "mo:caffeineai-stripe/stripe";
 import OutCall "mo:caffeineai-http-outcalls/outcall";
 import AccessControl "mo:caffeineai-authorization/access-control";
 import MixinAuthorization "mo:caffeineai-authorization/MixinAuthorization";
+import Migration "migration";
 import Common "types/common";
 import CatalogTypes "types/catalog";
 import FlashSaleTypes "types/flashsale";
@@ -22,7 +23,8 @@ import ReviewMixin "mixins/review-api";
 import OrderMixin "mixins/order-api";
 import UserMixin "mixins/user-api";
 import EnquiryMixin "mixins/enquiry-api";
-import Migration "migration";
+
+
 
 (with migration = Migration.run)
 actor {

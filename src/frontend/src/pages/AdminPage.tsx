@@ -34,7 +34,10 @@ import {
   Package,
   Plus,
   RefreshCw,
+  RotateCcw,
   ShoppingBag,
+  Star,
+  Tag,
   Trash2,
   TrendingDown,
   TrendingUp,
@@ -53,19 +56,30 @@ import type {
   Language,
   Order,
   ProductView,
+  PromoCode,
+  Review,
 } from "../backend.d.ts";
 
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { useAuth, useIsAdmin } from "../hooks/use-auth";
 import { useLanguage } from "../hooks/use-language";
 import {
+  type OrderedQuantityRow,
+  useApproveReview,
   useCreateFlashSale,
   useCreateProduct,
+  useCreatePromoCode,
   useDeactivateFlashSale,
+  useDeactivatePromoCode,
   useDeleteProduct,
+  useDeleteReview,
   useGetAdminAnalytics,
+  useGetOrderedQuantityReport,
   useListAllEnquiries,
   useListAllOrders,
+  useListAllPromoCodes,
+  useListAllReturns,
+  useListAllReviews,
   useListFlashSales,
   useListProducts,
   useUpdateEnquiryStatus,
@@ -108,7 +122,6 @@ function AdminPasswordGate({ onUnlock }: { onUnlock: () => void }) {
           boxShadow: "0 8px 40px oklch(0 0 0 / 0.25)",
         }}
       >
-        {/* Logo */}
         <div className="text-center space-y-3">
           <div
             className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center"
@@ -179,7 +192,7 @@ function AdminPasswordGate({ onUnlock }: { onUnlock: () => void }) {
   );
 }
 
-// ─── Enquiries Tab ─────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const ENQUIRY_STATUS_STYLES: Record<
   string,
@@ -204,212 +217,6 @@ const ENQUIRY_STATUS_STYLES: Record<
     label: "Replied",
   },
 };
-
-function EnquiryStatusBadge({ status }: { status: string }) {
-  const style = ENQUIRY_STATUS_STYLES[status] ?? ENQUIRY_STATUS_STYLES.new;
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${style.bg} ${style.text} border border-current/20`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
-      {style.label}
-    </span>
-  );
-}
-
-function EnquiriesTab({
-  enquiries,
-  loading,
-}: {
-  enquiries: Enquiry[] | undefined;
-  loading: boolean;
-}) {
-  const { mutate: updateStatus } = useUpdateEnquiryStatus();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const handleMark = (id: string, status: EnquiryStatus) => {
-    updateStatus(
-      { id, status },
-      {
-        onSuccess: () => toast.success(`Marked as ${status}`),
-        onError: () => toast.error("Failed to update status"),
-      },
-    );
-  };
-
-  return (
-    <div className="animate-fade-in" data-ocid="admin.enquiries_section">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
-            <Inbox size={15} className="text-primary" />
-          </div>
-          <h2 className="font-display font-bold text-sm uppercase tracking-widest text-foreground">
-            Enquiries ({enquiries?.length ?? 0})
-          </h2>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-xl" />
-          ))}
-        </div>
-      ) : enquiries?.length ? (
-        <div
-          className="card-elevation overflow-hidden"
-          data-ocid="admin.enquiries_list"
-        >
-          {enquiries.map((enq, idx) => {
-            const isExpanded = expandedId === enq.id;
-            const dateStr = new Date(
-              Number(enq.submittedAt) / 1_000_000,
-            ).toLocaleDateString("en-IN", {
-              day: "2-digit",
-              month: "short",
-              year: "2-digit",
-              hour: "2-digit",
-              minute: "2-digit",
-            });
-            return (
-              <div
-                key={enq.id}
-                className={`border-b border-border last:border-b-0 ${enq.status === "new" ? "bg-blue-500/3" : ""}`}
-                data-ocid={`admin.enquiry.${idx + 1}`}
-              >
-                <button
-                  type="button"
-                  className="w-full flex items-start gap-4 p-4 hover:bg-muted/10 cursor-pointer transition-smooth text-left"
-                  onClick={() => setExpandedId(isExpanded ? null : enq.id)}
-                >
-                  <div className="w-9 h-9 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
-                    <MessageSquare
-                      size={15}
-                      className="text-muted-foreground"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-3 flex-wrap">
-                      <div>
-                        <p className="font-semibold text-sm">{enq.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {enq.email} · {enq.phone}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <EnquiryStatusBadge status={enq.status} />
-                        <span className="text-xs text-muted-foreground/60">
-                          {dateStr}
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
-                      {enq.message}
-                    </p>
-                  </div>
-                </button>
-                {isExpanded && (
-                  <div
-                    className="px-4 pb-4 ml-13 border-t"
-                    style={{ borderColor: "oklch(var(--border))" }}
-                  >
-                    <p className="text-sm text-foreground/80 mt-3 leading-relaxed bg-muted/20 rounded-xl p-3">
-                      {enq.message}
-                    </p>
-                    <div className="flex items-center gap-2 mt-3 flex-wrap">
-                      {enq.status !== "viewed" && enq.status !== "replied" && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            handleMark(enq.id, EnquiryStatus.viewed)
-                          }
-                          data-ocid={`admin.mark_viewed.${idx + 1}`}
-                          className="h-8 px-3 rounded-lg text-xs text-amber-400 hover:bg-amber-500/10 gap-1"
-                        >
-                          <Eye size={12} />
-                          Mark as Viewed
-                        </Button>
-                      )}
-                      {enq.status !== "replied" && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            handleMark(enq.id, EnquiryStatus.replied)
-                          }
-                          data-ocid={`admin.mark_replied.${idx + 1}`}
-                          className="h-8 px-3 rounded-lg text-xs text-green-400 hover:bg-green-500/10 gap-1"
-                        >
-                          <CheckCircle2 size={12} />
-                          Mark as Replied
-                        </Button>
-                      )}
-                      <a
-                        href={`mailto:${enq.email}?subject=Re: Your Enquiry at Vidyamandir`}
-                        className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs text-muted-foreground hover:text-accent hover:bg-accent/10 transition-smooth"
-                        data-ocid={`admin.reply_email.${idx + 1}`}
-                      >
-                        Reply via Email
-                      </a>
-                      <a
-                        href={`https://wa.me/91${enq.phone.replace(/\D/g, "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs text-green-400 hover:bg-green-500/10 transition-smooth"
-                        data-ocid={`admin.reply_whatsapp.${idx + 1}`}
-                      >
-                        Reply on WhatsApp
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div
-          className="card-elevation flex flex-col items-center py-16 gap-4"
-          data-ocid="admin.enquiries.empty_state"
-        >
-          <div className="w-16 h-16 rounded-2xl bg-muted/30 flex items-center justify-center">
-            <Inbox size={28} className="text-muted-foreground/30" />
-          </div>
-          <p className="text-sm text-muted-foreground">No enquiries yet</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const GENRES = [
-  "fiction",
-  "bengaliClassics",
-  "poetry",
-  "nonFiction",
-  "childrens",
-  "academic",
-  "history",
-  "biography",
-  "religion",
-  "science",
-  "other",
-] as const;
-
-const ORDER_STATUSES: OrderStatus[] = [
-  OrderStatus.processing,
-  OrderStatus.shipped,
-  OrderStatus.delivered,
-  OrderStatus.cancelled,
-  OrderStatus.refundRequested,
-  OrderStatus.refunded,
-];
 
 const STATUS_STYLES: Record<
   string,
@@ -453,6 +260,29 @@ const STATUS_STYLES: Record<
   },
 };
 
+const GENRES = [
+  "fiction",
+  "bengaliClassics",
+  "poetry",
+  "nonFiction",
+  "childrens",
+  "academic",
+  "history",
+  "biography",
+  "religion",
+  "science",
+  "other",
+] as const;
+
+const ORDER_STATUSES: OrderStatus[] = [
+  OrderStatus.processing,
+  OrderStatus.shipped,
+  OrderStatus.delivered,
+  OrderStatus.cancelled,
+  OrderStatus.refundRequested,
+  OrderStatus.refunded,
+];
+
 const EMPTY_PRODUCT: CreateProductInput = {
   info: {
     titleEn: "",
@@ -480,8 +310,6 @@ const EMPTY_FLASH_SALE: CreateFlashSaleInput = {
   items: [],
 };
 
-// ─── Status Badge ─────────────────────────────────────────────────────────────
-
 function StatusBadge({ status }: { status: string }) {
   const style = STATUS_STYLES[status] ?? STATUS_STYLES.processing;
   return (
@@ -494,7 +322,41 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-// ─── KPI Stat Card ────────────────────────────────────────────────────────────
+function EnquiryStatusBadge({ status }: { status: string }) {
+  const style = ENQUIRY_STATUS_STYLES[status] ?? ENQUIRY_STATUS_STYLES.new;
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${style.bg} ${style.text} border border-current/20`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+      {style.label}
+    </span>
+  );
+}
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  action,
+}: {
+  icon: React.ElementType;
+  title: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+          <Icon size={15} className="text-primary" />
+        </div>
+        <h2 className="font-display font-bold text-sm uppercase tracking-widest text-foreground">
+          {title}
+        </h2>
+      </div>
+      {action}
+    </div>
+  );
+}
 
 function StatCard({
   label,
@@ -546,28 +408,20 @@ function StatCard({
   );
 }
 
-// ─── Section Header ───────────────────────────────────────────────────────────
-
-function SectionHeader({
-  icon: Icon,
-  title,
-  action,
-}: {
-  icon: React.ElementType;
-  title: string;
-  action?: React.ReactNode;
-}) {
+function StarRating({ rating }: { rating: bigint }) {
   return (
-    <div className="flex items-center justify-between mb-5">
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
-          <Icon size={15} className="text-primary" />
-        </div>
-        <h2 className="font-display font-bold text-sm uppercase tracking-widest text-foreground">
-          {title}
-        </h2>
-      </div>
-      {action}
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((s) => (
+        <Star
+          key={s}
+          size={11}
+          className={
+            s <= Number(rating)
+              ? "text-amber-400 fill-amber-400"
+              : "text-muted-foreground/30"
+          }
+        />
+      ))}
     </div>
   );
 }
@@ -624,13 +478,13 @@ function AnalyticsTab({
   ];
 
   const productMap = new Map(products?.map((p) => [p.id.toString(), p]) ?? []);
+  const lowStock = products?.filter((p) => Number(p.stockCount) < 5) ?? [];
 
   return (
     <div
       className="space-y-6 animate-fade-in"
       data-ocid="admin.analytics_section"
     >
-      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map(({ label, value, icon, iconBg, trend }) => (
           <StatCard
@@ -645,7 +499,6 @@ function AnalyticsTab({
         ))}
       </div>
 
-      {/* Recent Revenue Banner */}
       {analytics && (
         <div
           className="rounded-2xl p-6 border border-accent/30 overflow-hidden relative"
@@ -695,12 +548,62 @@ function AnalyticsTab({
         </div>
       )}
 
+      {/* Low Stock Warnings */}
+      {lowStock.length > 0 && (
+        <div>
+          <SectionHeader
+            icon={TrendingDown}
+            title={`Low Stock Warnings (${lowStock.length})`}
+          />
+          <div
+            className="card-elevation overflow-hidden"
+            data-ocid="admin.low_stock_list"
+          >
+            {lowStock.map((p, idx) => (
+              <div
+                key={p.id.toString()}
+                className={`flex items-center gap-4 px-5 py-3.5 ${idx < lowStock.length - 1 ? "border-b border-border" : ""} hover:bg-muted/20 transition-smooth`}
+                data-ocid={`admin.low_stock.${idx + 1}`}
+              >
+                <div className="w-8 h-10 rounded-sm bg-muted flex items-center justify-center shrink-0">
+                  {p.coverImageUrl ? (
+                    <img
+                      src={p.coverImageUrl}
+                      alt={p.info.titleEn}
+                      className="w-full h-full object-cover rounded-sm"
+                    />
+                  ) : (
+                    <BookOpen size={13} className="text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">
+                    {p.info.titleEn}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {p.info.authorEn}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span
+                    className={`font-mono font-bold text-lg ${p.stockCount === BigInt(0) ? "text-destructive" : "text-amber-400"}`}
+                  >
+                    {Number(p.stockCount)}
+                  </span>
+                  <p className="text-xs text-muted-foreground">units left</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Bestsellers */}
       <div>
         <SectionHeader icon={TrendingUp} title="Top Bestsellers" />
         {analyticsLoading ? (
           <div className="space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
+            {[1, 2, 3].map((i) => (
               <Skeleton key={i} className="h-14 w-full rounded-xl" />
             ))}
           </div>
@@ -718,13 +621,7 @@ function AnalyticsTab({
                   data-ocid={`admin.bestseller.${idx + 1}`}
                 >
                   <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-mono font-bold text-sm ${
-                      idx === 0
-                        ? "bg-amber-500/20 text-amber-400"
-                        : idx === 1
-                          ? "bg-muted text-muted-foreground"
-                          : "bg-muted/50 text-muted-foreground/70"
-                    }`}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-mono font-bold text-sm ${idx === 0 ? "bg-amber-500/20 text-amber-400" : idx === 1 ? "bg-muted text-muted-foreground" : "bg-muted/50 text-muted-foreground/70"}`}
                   >
                     #{idx + 1}
                   </div>
@@ -796,12 +693,10 @@ function ProductsTab({
             data-ocid="admin.add_product_button"
             className="cta-primary flex items-center gap-1.5 text-xs px-4 py-2"
           >
-            <Plus size={13} />
-            Add Product
+            <Plus size={13} /> Add Product
           </button>
         }
       />
-
       {productsLoading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4, 5].map((i) => (
@@ -817,13 +712,7 @@ function ProductsTab({
                   (h, i) => (
                     <th
                       key={h}
-                      className={`p-4 text-xs text-muted-foreground font-bold uppercase tracking-widest ${
-                        i === 0
-                          ? "text-left"
-                          : i === 5
-                            ? "text-center"
-                            : "text-right"
-                      } ${i === 3 || i === 4 ? "hidden sm:table-cell" : ""}`}
+                      className={`p-4 text-xs text-muted-foreground font-bold uppercase tracking-widest ${i === 0 ? "text-left" : i === 5 ? "text-center" : "text-right"} ${i === 3 || i === 4 ? "hidden sm:table-cell" : ""}`}
                     >
                       {h}
                     </th>
@@ -872,13 +761,7 @@ function ProductsTab({
                   </td>
                   <td className="p-4 text-right">
                     <span
-                      className={`font-mono text-sm font-bold ${
-                        p.stockCount === BigInt(0)
-                          ? "text-destructive"
-                          : Number(p.stockCount) < 10
-                            ? "text-amber-400"
-                            : "text-green-400"
-                      }`}
+                      className={`font-mono text-sm font-bold ${p.stockCount === BigInt(0) ? "text-destructive" : Number(p.stockCount) < 10 ? "text-amber-400" : "text-green-400"}`}
                     >
                       {Number(p.stockCount)}
                     </span>
@@ -994,12 +877,10 @@ function FlashSalesTab({
             data-ocid="admin.create_flash_sale_button"
             className="cta-primary flex items-center gap-1.5 text-xs px-4 py-2"
           >
-            <Plus size={13} />
-            New Flash Sale
+            <Plus size={13} /> New Flash Sale
           </button>
         }
       />
-
       {flashSalesLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -1030,14 +911,11 @@ function FlashSalesTab({
                     </h3>
                     {sale.isCurrentlyActive && (
                       <span className="flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-accent/15 text-accent border border-accent/30 font-bold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />{" "}
                         LIVE
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    {sale.titleBn}
-                  </p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <span>
                       Start:{" "}
@@ -1078,11 +956,6 @@ function FlashSalesTab({
                           </div>
                         );
                       })}
-                      {sale.items.length > 5 && (
-                        <span className="text-xs text-muted-foreground px-2 py-1">
-                          +{sale.items.length - 5} more
-                        </span>
-                      )}
                     </div>
                   )}
                 </div>
@@ -1131,7 +1004,6 @@ function OrdersTab({
   onUpdateStatus: (order: Order) => void;
 }) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
-
   const filteredOrders =
     statusFilter === "all"
       ? orders
@@ -1163,7 +1035,6 @@ function OrdersTab({
           </Select>
         }
       />
-
       {ordersLoading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4, 5].map((i) => (
@@ -1248,8 +1119,7 @@ function OrdersTab({
                       data-ocid={`admin.update_order_status.${idx + 1}`}
                       className="h-8 px-2.5 rounded-lg text-xs text-muted-foreground hover:text-accent hover:bg-accent/10"
                     >
-                      <Edit2 size={12} className="mr-1" />
-                      Update
+                      <Edit2 size={12} className="mr-1" /> Update
                     </Button>
                   </td>
                 </tr>
@@ -1277,6 +1147,904 @@ function OrdersTab({
               )}
             </tbody>
           </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Enquiries Tab ─────────────────────────────────────────────────────────────
+
+function EnquiriesTab({
+  enquiries,
+  loading,
+}: { enquiries: Enquiry[] | undefined; loading: boolean }) {
+  const { mutate: updateStatus } = useUpdateEnquiryStatus();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const handleMark = (id: string, status: EnquiryStatus) => {
+    updateStatus(
+      { id, status },
+      {
+        onSuccess: () => toast.success(`Marked as ${status}`),
+        onError: () => toast.error("Failed to update status"),
+      },
+    );
+  };
+
+  return (
+    <div className="animate-fade-in" data-ocid="admin.enquiries_section">
+      <SectionHeader
+        icon={Inbox}
+        title={`Enquiries (${enquiries?.length ?? 0})`}
+      />
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : enquiries?.length ? (
+        <div
+          className="card-elevation overflow-hidden"
+          data-ocid="admin.enquiries_list"
+        >
+          {enquiries.map((enq, idx) => {
+            const isExpanded = expandedId === enq.id;
+            const dateStr = new Date(
+              Number(enq.submittedAt) / 1_000_000,
+            ).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            return (
+              <div
+                key={enq.id}
+                className={`border-b border-border last:border-b-0 ${enq.status === "new" ? "bg-blue-500/3" : ""}`}
+                data-ocid={`admin.enquiry.${idx + 1}`}
+              >
+                <button
+                  type="button"
+                  className="w-full flex items-start gap-4 p-4 hover:bg-muted/10 cursor-pointer transition-smooth text-left"
+                  onClick={() => setExpandedId(isExpanded ? null : enq.id)}
+                >
+                  <div className="w-9 h-9 rounded-lg bg-muted/40 flex items-center justify-center shrink-0">
+                    <MessageSquare
+                      size={15}
+                      className="text-muted-foreground"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div>
+                        <p className="font-semibold text-sm">{enq.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {enq.email} · {enq.phone}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <EnquiryStatusBadge status={enq.status} />
+                        <span className="text-xs text-muted-foreground/60">
+                          {dateStr}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">
+                      {enq.message}
+                    </p>
+                  </div>
+                </button>
+                {isExpanded && (
+                  <div
+                    className="px-4 pb-4 ml-13 border-t"
+                    style={{ borderColor: "oklch(var(--border))" }}
+                  >
+                    <p className="text-sm text-foreground/80 mt-3 leading-relaxed bg-muted/20 rounded-xl p-3">
+                      {enq.message}
+                    </p>
+                    <div className="flex items-center gap-2 mt-3 flex-wrap">
+                      {enq.status !== "viewed" && enq.status !== "replied" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            handleMark(enq.id, EnquiryStatus.viewed)
+                          }
+                          data-ocid={`admin.mark_viewed.${idx + 1}`}
+                          className="h-8 px-3 rounded-lg text-xs text-amber-400 hover:bg-amber-500/10 gap-1"
+                        >
+                          <Eye size={12} /> Mark as Viewed
+                        </Button>
+                      )}
+                      {enq.status !== "replied" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() =>
+                            handleMark(enq.id, EnquiryStatus.replied)
+                          }
+                          data-ocid={`admin.mark_replied.${idx + 1}`}
+                          className="h-8 px-3 rounded-lg text-xs text-green-400 hover:bg-green-500/10 gap-1"
+                        >
+                          <CheckCircle2 size={12} /> Mark as Replied
+                        </Button>
+                      )}
+                      <a
+                        href={`mailto:${enq.email}?subject=Re: Your Enquiry at Vidyamandir`}
+                        className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs text-muted-foreground hover:text-accent hover:bg-accent/10 transition-smooth"
+                        data-ocid={`admin.reply_email.${idx + 1}`}
+                      >
+                        Reply via Email
+                      </a>
+                      <a
+                        href={`https://wa.me/91${enq.phone.replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 h-8 px-3 rounded-lg text-xs text-green-400 hover:bg-green-500/10 transition-smooth"
+                        data-ocid={`admin.reply_whatsapp.${idx + 1}`}
+                      >
+                        Reply on WhatsApp
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          className="card-elevation flex flex-col items-center py-16 gap-4"
+          data-ocid="admin.enquiries.empty_state"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-muted/30 flex items-center justify-center">
+            <Inbox size={28} className="text-muted-foreground/30" />
+          </div>
+          <p className="text-sm text-muted-foreground">No enquiries yet</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Reviews Moderation Tab ───────────────────────────────────────────────────
+
+function ReviewsModerationTab() {
+  const { data: reviews, isLoading } = useListAllReviews();
+  const { mutate: approveReview, isPending: approving } = useApproveReview();
+  const { mutate: deleteReview, isPending: deleting } = useDeleteReview();
+  const [filter, setFilter] = useState<"all" | "pending" | "approved">("all");
+
+  const filtered =
+    reviews?.filter((r) => {
+      if (filter === "all") return true;
+      if (filter === "approved") return r.helpfulVotes >= BigInt(0);
+      return true;
+    }) ?? [];
+
+  return (
+    <div className="animate-fade-in" data-ocid="admin.reviews_section">
+      <SectionHeader
+        icon={Star}
+        title={`Reviews (${reviews?.length ?? 0})`}
+        action={
+          <div className="flex gap-1 rounded-lg p-1 bg-muted/30">
+            {(["all", "pending", "approved"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                data-ocid={`admin.reviews_filter.${f}`}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold capitalize transition-smooth ${filter === f ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        }
+      />
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : filtered.length ? (
+        <div className="space-y-3" data-ocid="admin.reviews_list">
+          {filtered.map((review, idx) => (
+            <div
+              key={review.id.toString()}
+              className="card-elevation p-5"
+              data-ocid={`admin.review.${idx + 1}`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <StarRating rating={review.rating} />
+                    <span className="text-xs font-bold text-foreground">
+                      {review.titleEn}
+                    </span>
+                    {review.isVerifiedPurchase && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 font-semibold">
+                        Verified
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2 line-clamp-3">
+                    {review.bodyEn}
+                  </p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground/60">
+                    <span>Product #{review.productId.toString()}</span>
+                    <span>
+                      {new Date(
+                        Number(review.createdAt) / 1_000_000,
+                      ).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "2-digit",
+                      })}
+                    </span>
+                    <span>{review.helpfulVotes.toString()} helpful votes</span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      approveReview(review.id, {
+                        onSuccess: () => toast.success("Review approved"),
+                        onError: () => toast.error("Failed to approve"),
+                      })
+                    }
+                    disabled={approving}
+                    data-ocid={`admin.approve_review.${idx + 1}`}
+                    className="h-8 px-3 rounded-lg text-xs text-green-400 hover:bg-green-500/10 gap-1"
+                  >
+                    <CheckCircle2 size={12} /> Approve
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      deleteReview(review.id, {
+                        onSuccess: () => toast.success("Review deleted"),
+                        onError: () => toast.error("Failed to delete"),
+                      })
+                    }
+                    disabled={deleting}
+                    data-ocid={`admin.delete_review.${idx + 1}`}
+                    className="h-8 px-3 rounded-lg text-xs text-destructive hover:bg-destructive/10 gap-1"
+                  >
+                    <Trash2 size={12} /> Delete
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div
+          className="card-elevation flex flex-col items-center py-16 gap-4"
+          data-ocid="admin.reviews.empty_state"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-muted/30 flex items-center justify-center">
+            <Star size={28} className="text-muted-foreground/30" />
+          </div>
+          <p className="text-sm text-muted-foreground">No reviews yet</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Returns & Refunds Tab ────────────────────────────────────────────────────
+
+function ReturnsTab({
+  onUpdateStatus,
+}: { onUpdateStatus: (order: Order) => void }) {
+  const { data: returns, isLoading } = useListAllReturns();
+
+  return (
+    <div className="animate-fade-in" data-ocid="admin.returns_section">
+      <SectionHeader
+        icon={RotateCcw}
+        title={`Returns & Refunds (${returns?.length ?? 0})`}
+      />
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : returns?.length ? (
+        <div className="space-y-3" data-ocid="admin.returns_list">
+          {returns.map((order, idx) => (
+            <div
+              key={order.id.toString()}
+              className="card-elevation p-5"
+              data-ocid={`admin.return.${idx + 1}`}
+            >
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <p className="font-mono text-xs font-bold text-foreground">
+                      Order #{order.id.toString()}
+                    </p>
+                    <StatusBadge status={order.status} />
+                  </div>
+                  <p className="text-sm font-semibold">
+                    {order.shippingAddress.fullName}
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {order.shippingAddress.city}, {order.shippingAddress.state}
+                  </p>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {order.items.map((item) => (
+                      <span
+                        key={item.productId.toString()}
+                        className="text-xs bg-muted/40 px-2 py-0.5 rounded-full border border-border text-muted-foreground"
+                      >
+                        {item.titleEn} ×{item.quantity.toString()}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground/60">
+                    <span>
+                      Total:{" "}
+                      <span className="text-foreground font-mono font-bold">
+                        {formatPrice(order.totalInPaisa)}
+                      </span>
+                    </span>
+                    <span>
+                      Placed:{" "}
+                      {new Date(
+                        Number(order.createdAt) / 1_000_000,
+                      ).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onUpdateStatus(order)}
+                    data-ocid={`admin.process_return.${idx + 1}`}
+                    className="h-8 px-3 rounded-lg text-xs text-muted-foreground hover:text-accent hover:bg-accent/10 gap-1"
+                  >
+                    <Edit2 size={12} /> Process
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div
+          className="card-elevation flex flex-col items-center py-16 gap-4"
+          data-ocid="admin.returns.empty_state"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-muted/30 flex items-center justify-center">
+            <RotateCcw size={28} className="text-muted-foreground/30" />
+          </div>
+          <p className="text-sm text-muted-foreground">No return requests</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Promo Codes Tab ──────────────────────────────────────────────────────────
+
+function PromoCodesTab() {
+  const { data: codes, isLoading } = useListAllPromoCodes();
+  const { mutate: createCode, isPending: creating } = useCreatePromoCode();
+  const { mutate: deactivate } = useDeactivatePromoCode();
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    code: "",
+    discountPercent: "10",
+    maxUsageCount: "",
+    minSpendInPaisa: "0",
+    validFrom: new Date().toISOString().slice(0, 10),
+    validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10),
+  });
+
+  const handleCreate = (e: React.FormEvent) => {
+    e.preventDefault();
+    createCode(
+      {
+        code: form.code.toUpperCase(),
+        discountPercent: BigInt(form.discountPercent),
+        maxUsageCount: form.maxUsageCount ? BigInt(form.maxUsageCount) : null,
+        minSpendInPaisa: BigInt(Math.round(Number(form.minSpendInPaisa) * 100)),
+        validFrom:
+          BigInt(new Date(form.validFrom).getTime()) * BigInt(1_000_000),
+        validUntil:
+          BigInt(new Date(form.validUntil).getTime()) * BigInt(1_000_000),
+      },
+      {
+        onSuccess: () => {
+          toast.success("Promo code created!");
+          setShowForm(false);
+          setForm({
+            code: "",
+            discountPercent: "10",
+            maxUsageCount: "",
+            minSpendInPaisa: "0",
+            validFrom: new Date().toISOString().slice(0, 10),
+            validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+              .toISOString()
+              .slice(0, 10),
+          });
+        },
+        onError: () => toast.error("Failed to create promo code"),
+      },
+    );
+  };
+
+  return (
+    <div className="animate-fade-in" data-ocid="admin.promo_codes_section">
+      <SectionHeader
+        icon={Tag}
+        title={`Promo Codes (${codes?.length ?? 0})`}
+        action={
+          <button
+            type="button"
+            onClick={() => setShowForm(!showForm)}
+            data-ocid="admin.add_promo_code_button"
+            className="cta-primary flex items-center gap-1.5 text-xs px-4 py-2"
+          >
+            <Plus size={13} /> New Code
+          </button>
+        }
+      />
+
+      {showForm && (
+        <form
+          onSubmit={handleCreate}
+          className="card-elevation p-5 mb-5 space-y-4"
+          data-ocid="admin.promo_code_form"
+        >
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Create New Promo Code
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground font-semibold">
+                Code *
+              </Label>
+              <Input
+                value={form.code}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, code: e.target.value }))
+                }
+                className="input-field h-9 rounded-lg font-mono"
+                placeholder="SAVE20"
+                required
+                data-ocid="admin.promo_code_input"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground font-semibold">
+                Discount %
+              </Label>
+              <Input
+                type="number"
+                min="1"
+                max="99"
+                value={form.discountPercent}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, discountPercent: e.target.value }))
+                }
+                className="input-field h-9 rounded-lg"
+                data-ocid="admin.promo_discount_input"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground font-semibold">
+                Max Uses
+              </Label>
+              <Input
+                type="number"
+                min="1"
+                value={form.maxUsageCount}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, maxUsageCount: e.target.value }))
+                }
+                className="input-field h-9 rounded-lg"
+                placeholder="Unlimited"
+                data-ocid="admin.promo_max_uses_input"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground font-semibold">
+                Min Spend (₹)
+              </Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.minSpendInPaisa}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, minSpendInPaisa: e.target.value }))
+                }
+                className="input-field h-9 rounded-lg"
+                data-ocid="admin.promo_min_spend_input"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground font-semibold">
+                Valid From
+              </Label>
+              <Input
+                type="date"
+                value={form.validFrom}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, validFrom: e.target.value }))
+                }
+                className="input-field h-9 rounded-lg"
+                data-ocid="admin.promo_valid_from_input"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground font-semibold">
+                Valid Until
+              </Label>
+              <Input
+                type="date"
+                value={form.validUntil}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, validUntil: e.target.value }))
+                }
+                className="input-field h-9 rounded-lg"
+                data-ocid="admin.promo_valid_until_input"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowForm(false)}
+              data-ocid="admin.promo_cancel_button"
+              className="btn-secondary rounded-lg text-xs"
+            >
+              Cancel
+            </Button>
+            <button
+              type="submit"
+              disabled={creating}
+              data-ocid="admin.promo_submit_button"
+              className="cta-primary text-xs px-5 py-2 disabled:opacity-60"
+            >
+              {creating ? "Creating..." : "Create Code"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : codes?.length ? (
+        <div
+          className="card-elevation overflow-x-auto"
+          data-ocid="admin.promo_codes_list"
+        >
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                {[
+                  "Code",
+                  "Discount",
+                  "Usage",
+                  "Valid Until",
+                  "Status",
+                  "Action",
+                ].map((h, i) => (
+                  <th
+                    key={h}
+                    className={`p-4 text-xs text-muted-foreground font-bold uppercase tracking-widest ${i === 0 ? "text-left" : i === 5 ? "text-center" : "text-right"}`}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {codes.map((code: PromoCode, idx) => (
+                <tr
+                  key={code.code}
+                  className="border-b border-border hover:bg-muted/15 transition-smooth"
+                  data-ocid={`admin.promo_code.${idx + 1}`}
+                >
+                  <td className="p-4">
+                    <span className="font-mono font-bold text-sm text-foreground tracking-widest">
+                      {code.code}
+                    </span>
+                    {code.minSpendInPaisa > BigInt(0) && (
+                      <p className="text-xs text-muted-foreground">
+                        Min: {formatPrice(code.minSpendInPaisa)}
+                      </p>
+                    )}
+                  </td>
+                  <td className="p-4 text-right">
+                    <span className="font-mono font-bold text-accent text-lg">
+                      {code.discountPercent.toString()}%
+                    </span>
+                  </td>
+                  <td className="p-4 text-right">
+                    <span className="font-mono text-sm">
+                      {code.usageCount.toString()}
+                    </span>
+                    {code.maxUsageCount !== undefined && (
+                      <span className="text-muted-foreground text-xs">
+                        /{code.maxUsageCount.toString()}
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-4 text-right text-xs text-muted-foreground">
+                    {new Date(
+                      Number(code.validUntil) / 1_000_000,
+                    ).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "2-digit",
+                    })}
+                  </td>
+                  <td className="p-4 text-center">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${code.isActive ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-muted text-muted-foreground border border-border"}`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${code.isActive ? "bg-green-400" : "bg-muted-foreground"}`}
+                      />
+                      {code.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </td>
+                  <td className="p-4 text-center">
+                    {code.isActive && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          deactivate(code.code, {
+                            onSuccess: () => toast.success("Deactivated"),
+                            onError: () => toast.error("Failed"),
+                          })
+                        }
+                        data-ocid={`admin.deactivate_promo.${idx + 1}`}
+                        className="h-8 px-3 rounded-lg text-xs text-destructive hover:bg-destructive/10"
+                      >
+                        Deactivate
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div
+          className="card-elevation flex flex-col items-center py-16 gap-4"
+          data-ocid="admin.promo_codes.empty_state"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center">
+            <Tag size={28} className="text-accent/50" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            No promo codes yet. Create your first one!
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Ordered Quantity Report Tab ──────────────────────────────────────────────
+
+function OrderedQtyTab() {
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [sortBy, setSortBy] = useState<"units" | "revenue">("units");
+
+  const fromTs = fromDate
+    ? BigInt(new Date(fromDate).getTime()) * BigInt(1_000_000)
+    : null;
+  const toTs = toDate
+    ? BigInt(new Date(toDate).setHours(23, 59, 59, 999)) * BigInt(1_000_000)
+    : null;
+
+  const { data: rows, isLoading } = useGetOrderedQuantityReport(fromTs, toTs);
+
+  const sorted = rows
+    ? [...rows].sort((a, b) =>
+        sortBy === "units"
+          ? a.totalUnits > b.totalUnits
+            ? -1
+            : 1
+          : a.totalRevenue > b.totalRevenue
+            ? -1
+            : 1,
+      )
+    : [];
+
+  return (
+    <div className="animate-fade-in" data-ocid="admin.ordered_qty_section">
+      <SectionHeader icon={ListOrdered} title="Ordered Quantity Report" />
+
+      <div className="flex flex-wrap items-end gap-3 mb-5 p-4 rounded-2xl bg-muted/20 border border-border">
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground font-semibold">
+            From Date
+          </Label>
+          <Input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="input-field h-9 rounded-lg text-xs"
+            data-ocid="admin.qty_from_date_input"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground font-semibold">
+            To Date
+          </Label>
+          <Input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="input-field h-9 rounded-lg text-xs"
+            data-ocid="admin.qty_to_date_input"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground font-semibold">
+            Sort By
+          </Label>
+          <Select
+            value={sortBy}
+            onValueChange={(v) => setSortBy(v as "units" | "revenue")}
+          >
+            <SelectTrigger
+              className="h-9 text-xs rounded-lg w-36"
+              data-ocid="admin.qty_sort_select"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="units" className="text-xs">
+                Most Ordered
+              </SelectItem>
+              <SelectItem value="revenue" className="text-xs">
+                Most Revenue
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {(fromDate || toDate) && (
+          <button
+            type="button"
+            onClick={() => {
+              setFromDate("");
+              setToDate("");
+            }}
+            className="h-9 px-3 rounded-lg text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-smooth"
+            data-ocid="admin.qty_clear_filter_button"
+          >
+            Clear Filters
+          </button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-14 w-full rounded-xl" />
+          ))}
+        </div>
+      ) : sorted.length ? (
+        <div
+          className="card-elevation overflow-x-auto"
+          data-ocid="admin.ordered_qty_table"
+        >
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                {[
+                  { label: "#", align: "center" },
+                  { label: "Book Title", align: "left" },
+                  {
+                    label: "Genre",
+                    align: "center",
+                    hidden: "hidden sm:table-cell",
+                  },
+                  { label: "Units Ordered", align: "right" },
+                  { label: "Total Revenue", align: "right" },
+                ].map(({ label, align, hidden }) => (
+                  <th
+                    key={label}
+                    className={`p-4 text-xs text-muted-foreground font-bold uppercase tracking-widest text-${align} ${hidden ?? ""}`}
+                  >
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((row: OrderedQuantityRow, idx) => (
+                <tr
+                  key={row.productId.toString()}
+                  className="border-b border-border hover:bg-muted/15 transition-smooth"
+                  data-ocid={`admin.qty_row.${idx + 1}`}
+                >
+                  <td className="p-4 text-center">
+                    <span
+                      className={`w-7 h-7 rounded-lg inline-flex items-center justify-center font-mono font-bold text-xs ${idx === 0 ? "bg-amber-500/20 text-amber-400" : "bg-muted/50 text-muted-foreground"}`}
+                    >
+                      {idx + 1}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <p className="font-semibold text-sm truncate max-w-[200px]">
+                      {row.titleEn}
+                    </p>
+                    <p className="text-xs text-muted-foreground/60 font-mono">
+                      #{row.productId.toString()}
+                    </p>
+                  </td>
+                  <td className="p-4 text-center hidden sm:table-cell">
+                    <Badge className="rounded-full text-xs bg-muted text-muted-foreground border-0 capitalize">
+                      {row.genre}
+                    </Badge>
+                  </td>
+                  <td className="p-4 text-right">
+                    <span className="font-mono font-bold text-xl text-foreground">
+                      {row.totalUnits.toString()}
+                    </span>
+                    <p className="text-xs text-muted-foreground">units</p>
+                  </td>
+                  <td className="p-4 text-right">
+                    <span className="font-mono font-bold text-accent">
+                      {formatPrice(row.totalRevenue)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div
+          className="card-elevation flex flex-col items-center py-16 gap-4"
+          data-ocid="admin.ordered_qty.empty_state"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-muted/30 flex items-center justify-center">
+            <ListOrdered size={28} className="text-muted-foreground/30" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            No order data for the selected period
+          </p>
         </div>
       )}
     </div>
@@ -1349,12 +2117,10 @@ export default function AdminPage() {
   const [orderDeliveryDate, setOrderDeliveryDate] = useState("");
   const [orderCourierNote, setOrderCourierNote] = useState("");
 
-  // Password gate — show BEFORE everything else
   if (!adminUnlocked) {
     return <AdminPasswordGate onUnlock={() => setAdminUnlocked(true)} />;
   }
 
-  // Guards
   if (!isAuthenticated) {
     return (
       <div
@@ -1384,9 +2150,8 @@ export default function AdminPage() {
     );
   }
 
-  if (adminLoading) {
+  if (adminLoading)
     return <LoadingSpinner fullPage text="Checking permissions..." />;
-  }
 
   if (!isAdmin) {
     return (
@@ -1538,41 +2303,69 @@ export default function AdminPage() {
     );
   };
 
+  const openOrderStatus = (order: Order) => {
+    setSelectedOrder(order);
+    setNewOrderStatus(order.status as OrderStatus);
+    setOrderStatusNote("");
+    setOrderDeliveryDate("");
+    setOrderCourierNote("");
+    setOrderStatusDialog(true);
+  };
+
+  const TABS = [
+    { value: "analytics", icon: BarChart2, label: "Analytics" },
+    { value: "products", icon: Package, label: "Products" },
+    { value: "flash-sales", icon: Zap, label: "Flash Sales" },
+    { value: "orders", icon: ShoppingBag, label: "Orders" },
+    { value: "enquiries", icon: Inbox, label: "Enquiries" },
+    { value: "reviews", icon: Star, label: "Reviews" },
+    { value: "returns", icon: RotateCcw, label: "Returns" },
+    { value: "promo-codes", icon: Tag, label: "Promo Codes" },
+    { value: "qty-report", icon: ListOrdered, label: "Qty Report" },
+  ];
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-6" data-ocid="admin.page">
       {/* Page Header */}
-      <div className="flex items-center gap-4 mb-6 pb-5 border-b border-border">
-        <div className="w-11 h-11 rounded-xl bg-accent/15 border border-accent/25 flex items-center justify-center shadow-card">
-          <BarChart2 size={20} className="text-accent" />
+      <div className="flex items-center justify-between gap-4 mb-6 pb-5 border-b border-border">
+        <div className="flex items-center gap-4">
+          <div className="w-11 h-11 rounded-xl bg-accent/15 border border-accent/25 flex items-center justify-center shadow-card">
+            <BarChart2 size={20} className="text-accent" />
+          </div>
+          <div>
+            <h1 className="font-display font-bold text-xl uppercase tracking-widest text-foreground">
+              {t("adminDashboard")}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Vidyamandir — Purba Bardhaman
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="font-display font-bold text-xl uppercase tracking-widest text-foreground">
-            {t("adminDashboard")}
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Vidyamandir — Purba Bardhaman
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            sessionStorage.removeItem("adminUnlocked");
+            setAdminUnlocked(false);
+          }}
+          className="text-xs text-muted-foreground hover:text-destructive transition-smooth flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-destructive/10"
+          data-ocid="admin.lock_button"
+        >
+          <Lock size={12} /> Lock Panel
+        </button>
       </div>
 
-      {/* Pill Tabs */}
+      {/* Tabs */}
       <Tabs defaultValue="analytics" data-ocid="admin.tabs">
         <div className="overflow-x-auto pb-1 mb-6">
-          <TabsList className="bg-muted/30 rounded-xl h-auto p-1 gap-1 inline-flex min-w-full sm:min-w-0">
-            {[
-              { value: "analytics", icon: BarChart2, label: "Analytics" },
-              { value: "products", icon: Package, label: "Products" },
-              { value: "flash-sales", icon: Zap, label: "Flash Sales" },
-              { value: "orders", icon: ShoppingBag, label: "Orders" },
-              { value: "enquiries", icon: Inbox, label: "Enquiries" },
-            ].map(({ value, icon: Icon, label }) => (
+          <TabsList className="bg-muted/30 rounded-xl h-auto p-1 gap-1 inline-flex min-w-max">
+            {TABS.map(({ value, icon: Icon, label }) => (
               <TabsTrigger
                 key={value}
                 value={value}
-                data-ocid={`admin.${value.replace("-", "_")}_tab`}
-                className="flex-1 sm:flex-none rounded-lg data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-card px-4 py-2.5 text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-smooth"
+                data-ocid={`admin.${value.replace(/-/g, "_")}_tab`}
+                className="rounded-lg data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-card px-3 py-2.5 text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-smooth"
               >
-                <Icon size={13} className="mr-1.5" />
+                <Icon size={12} className="mr-1.5" />
                 {label}
               </TabsTrigger>
             ))}
@@ -1630,15 +2423,15 @@ export default function AdminPage() {
             flashSales={flashSales}
             flashSalesLoading={flashSalesLoading}
             products={products}
-            onDeactivate={(id) => {
+            onDeactivate={(id) =>
               deactivateFlashSale(id, {
                 onSuccess: (ok) => {
                   if (ok) toast.success("Flash sale deactivated");
                   else toast.error("Could not deactivate");
                 },
                 onError: () => toast.error("Failed to deactivate flash sale"),
-              });
-            }}
+              })
+            }
             onCreateNew={() => {
               setFlashSaleForm(EMPTY_FLASH_SALE);
               setFlashSaleItems([]);
@@ -1651,23 +2444,32 @@ export default function AdminPage() {
           <OrdersTab
             orders={orders}
             ordersLoading={ordersLoading}
-            onUpdateStatus={(order) => {
-              setSelectedOrder(order);
-              setNewOrderStatus(order.status as OrderStatus);
-              setOrderStatusNote("");
-              setOrderDeliveryDate("");
-              setOrderCourierNote("");
-              setOrderStatusDialog(true);
-            }}
+            onUpdateStatus={openOrderStatus}
           />
         </TabsContent>
 
         <TabsContent value="enquiries">
           <EnquiriesTab enquiries={enquiries} loading={enquiriesLoading} />
         </TabsContent>
+
+        <TabsContent value="reviews">
+          <ReviewsModerationTab />
+        </TabsContent>
+
+        <TabsContent value="returns">
+          <ReturnsTab onUpdateStatus={openOrderStatus} />
+        </TabsContent>
+
+        <TabsContent value="promo-codes">
+          <PromoCodesTab />
+        </TabsContent>
+
+        <TabsContent value="qty-report">
+          <OrderedQtyTab />
+        </TabsContent>
       </Tabs>
 
-      {/* ── Product Dialog ──────────────────────────────────────────── */}
+      {/* ── Product Dialog ─────────────────────────────────────────────── */}
       <Dialog open={productDialog} onOpenChange={setProductDialog}>
         <DialogContent
           className="rounded-2xl max-w-xl max-h-[90vh] overflow-y-auto"
@@ -1958,7 +2760,7 @@ export default function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Stock Dialog ──────────────────────────────────────────────── */}
+      {/* ── Stock Dialog ─────────────────────────────────────────────────── */}
       <Dialog open={stockDialog} onOpenChange={setStockDialog}>
         <DialogContent
           className="rounded-2xl max-w-sm"
@@ -2029,7 +2831,7 @@ export default function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Flash Sale Dialog ─────────────────────────────────────────── */}
+      {/* ── Flash Sale Dialog ─────────────────────────────────────────────── */}
       <Dialog open={flashSaleDialog} onOpenChange={setFlashSaleDialog}>
         <DialogContent
           className="rounded-2xl max-w-2xl max-h-[90vh] overflow-y-auto"
@@ -2171,8 +2973,7 @@ export default function AdminPage() {
                 data-ocid="admin.flash_sale_add_item_button"
                 className="btn-secondary w-full text-xs flex items-center justify-center gap-1.5 py-2 rounded-lg"
               >
-                <Plus size={13} />
-                Add Product to Sale
+                <Plus size={13} /> Add Product to Sale
               </button>
               {flashSaleItems.length > 0 && (
                 <div className="space-y-1.5 mt-2">
@@ -2241,7 +3042,7 @@ export default function AdminPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Order Status Dialog ───────────────────────────────────────── */}
+      {/* ── Order Status Dialog ─────────────────────────────────────────── */}
       <Dialog open={orderStatusDialog} onOpenChange={setOrderStatusDialog}>
         <DialogContent
           className="rounded-2xl max-w-sm"

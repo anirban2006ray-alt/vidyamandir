@@ -156,6 +156,12 @@ export interface CreateReviewInput {
     rating: bigint;
     titleEn: string;
 }
+export interface OrderedQuantityItem {
+    totalOrdered: bigint;
+    productTitle: string;
+    productId: ProductId;
+    totalRevenue: bigint;
+}
 export interface Review {
     id: ReviewId;
     userId: UserId;
@@ -178,6 +184,18 @@ export interface FlashSaleView {
     titleEn: string;
 }
 export type QuestionId = bigint;
+export interface AdminReviewView {
+    id: ReviewId;
+    isApproved: boolean;
+    userId: UserId;
+    createdAt: Timestamp;
+    bodyEn: string;
+    productId: ProductId;
+    isVerifiedPurchase: boolean;
+    rating: bigint;
+    helpfulVotes: bigint;
+    titleEn: string;
+}
 export interface Enquiry {
     id: string;
     status: EnquiryStatus;
@@ -223,13 +241,12 @@ export interface ProductFilter {
     maxPriceInPaisa?: bigint;
 }
 export type UserId = Principal;
-export interface FlashSaleItem {
-    discountedPriceInPaisa: bigint;
-    discountPercent: bigint;
-    productId: ProductId;
-    quantityLimit?: bigint;
-    originalPriceInPaisa: bigint;
-    soldCount: bigint;
+export interface PromoCodeUpdateRequest {
+    maxUsageCount?: bigint;
+    discountPercent?: bigint;
+    isActive?: boolean;
+    minSpendInPaisa?: bigint;
+    validUntil?: Timestamp;
 }
 export interface ShoppingItem {
     productName: string;
@@ -253,6 +270,14 @@ export interface ProductView {
     publicationDate: Timestamp;
     reviewCount: bigint;
 }
+export interface FlashSaleItem {
+    discountedPriceInPaisa: bigint;
+    discountPercent: bigint;
+    productId: ProductId;
+    quantityLimit?: bigint;
+    originalPriceInPaisa: bigint;
+    soldCount: bigint;
+}
 export interface CreateProductInput {
     coverImageUrl: string;
     info: ProductLabel;
@@ -264,6 +289,10 @@ export interface CreateProductInput {
     genre: Genre;
     publicationDate: Timestamp;
 }
+export interface ProductSort {
+    field: SortField;
+    order: SortOrder;
+}
 export interface CreateFlashSaleInput {
     startTime: Timestamp;
     endTime: Timestamp;
@@ -271,19 +300,7 @@ export interface CreateFlashSaleInput {
     titleBn: string;
     titleEn: string;
 }
-export interface ProductSort {
-    field: SortField;
-    order: SortOrder;
-}
 export type AnswerId = bigint;
-export interface Answer {
-    id: AnswerId;
-    createdAt: Timestamp;
-    questionId: QuestionId;
-    helpfulVotes: bigint;
-    answerText: string;
-    answeredBy: UserId;
-}
 export type ProductId = bigint;
 export interface Question {
     id: QuestionId;
@@ -297,6 +314,14 @@ export interface CartItem {
     priceSnapshotInPaisa: bigint;
     addedAt: Timestamp;
     quantity: bigint;
+}
+export interface Answer {
+    id: AnswerId;
+    createdAt: Timestamp;
+    questionId: QuestionId;
+    helpfulVotes: bigint;
+    answerText: string;
+    answeredBy: UserId;
 }
 export interface UserProfile {
     preferredLanguage: Variant_bengali_english;
@@ -383,6 +408,20 @@ export interface backendInterface {
         __kind__: "err";
         err: AppError;
     }>;
+    adminApproveReview(reviewId: ReviewId, approved: boolean): Promise<{
+        __kind__: "ok";
+        ok: boolean;
+    } | {
+        __kind__: "err";
+        err: AppError;
+    }>;
+    adminDeleteReview(reviewId: ReviewId): Promise<{
+        __kind__: "ok";
+        ok: boolean;
+    } | {
+        __kind__: "err";
+        err: AppError;
+    }>;
     askQuestion(productId: ProductId, questionText: string): Promise<{
         __kind__: "ok";
         ok: QuestionId;
@@ -433,6 +472,7 @@ export interface backendInterface {
     getCart(): Promise<Array<CartItem>>;
     getFlashSale(id: FlashSaleId): Promise<FlashSaleView | null>;
     getOrder(orderId: OrderId): Promise<Order | null>;
+    getOrderedQuantityReport(fromDate: bigint | null, toDate: bigint | null): Promise<Array<OrderedQuantityItem>>;
     getProduct(id: ProductId): Promise<ProductView | null>;
     getRecentlyViewed(): Promise<Array<ProductView>>;
     getReview(id: ReviewId): Promise<Review | null>;
@@ -444,10 +484,13 @@ export interface backendInterface {
     listAddresses(): Promise<Array<Address>>;
     listAllEnquiries(): Promise<Array<Enquiry>>;
     listAllOrders(offset: bigint, limit: bigint): Promise<Array<Order>>;
+    listAllReturns(): Promise<Array<Order>>;
+    listAllReviews(): Promise<Array<AdminReviewView>>;
     listAnswers(questionId: QuestionId): Promise<Array<Answer>>;
     listFlashSales(activeOnly: boolean): Promise<Array<FlashSaleView>>;
     listMyOrders(): Promise<Array<Order>>;
     listProducts(filterOpt: ProductFilter | null, sortOpt: ProductSort | null, offset: bigint, limit: bigint): Promise<Array<ProductView>>;
+    listPromoCodes(): Promise<Array<PromoCode>>;
     listQuestions(productId: ProductId): Promise<Array<Question>>;
     listReviews(productId: ProductId): Promise<Array<Review>>;
     listReviewsSorted(productId: ProductId, sortMode: Variant_helpfulness_recency_rating): Promise<Array<Review>>;
@@ -496,6 +539,13 @@ export interface backendInterface {
     updateEnquiryStatus(id: string, status: EnquiryStatus): Promise<boolean>;
     updateOrderStatus(orderId: OrderId, status: OrderStatus, note: string, estimatedDeliveryDate: bigint | null, courierNote: string | null): Promise<boolean>;
     updateProduct(input: UpdateProductInput): Promise<{
+        __kind__: "ok";
+        ok: boolean;
+    } | {
+        __kind__: "err";
+        err: AppError;
+    }>;
+    updatePromoCode(code: string, updates: PromoCodeUpdateRequest): Promise<{
         __kind__: "ok";
         ok: boolean;
     } | {

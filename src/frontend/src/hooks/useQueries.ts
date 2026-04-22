@@ -640,7 +640,7 @@ export function useVoteAnswerHelpful() {
   });
 }
 
-// ─── Admin ─────────────────────────────────────────────────────────────────────
+// ─── Admin — Core ─────────────────────────────────────────────────────────────
 
 export function useGetAdminAnalytics() {
   const { actor, isFetching } = useActor(createActor);
@@ -732,6 +732,219 @@ export function useValidatePromoCode() {
       if (!actor) throw new Error("Actor not available");
       return actor.validatePromoCode(code);
     },
+  });
+}
+
+export function useListAllPromoCodes() {
+  const { actor, isFetching } = useActor(createActor);
+  const { isAuthenticated } = useInternetIdentity();
+  return useQuery<PromoCode[]>({
+    queryKey: ["allPromoCodes"],
+    queryFn: async () => {
+      if (!actor) return [];
+      // Graceful fallback: backend may not yet expose listPromoCodes
+      const a = actor as unknown as Record<string, unknown>;
+      if (typeof a.listPromoCodes === "function") {
+        return (a.listPromoCodes as () => Promise<PromoCode[]>)();
+      }
+      return [];
+    },
+    enabled: !!actor && !isFetching && isAuthenticated,
+  });
+}
+
+export function useCreatePromoCode() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      code: string;
+      discountPercent: bigint;
+      maxUsageCount: bigint | null;
+      minSpendInPaisa: bigint;
+      validFrom: bigint;
+      validUntil: bigint;
+    }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.createPromoCode(
+        params.code,
+        params.discountPercent,
+        params.maxUsageCount,
+        params.minSpendInPaisa,
+        params.validFrom,
+        params.validUntil,
+      );
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["allPromoCodes"] });
+    },
+  });
+}
+
+export function useDeactivatePromoCode() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (code: string) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.deactivatePromoCode(code);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["allPromoCodes"] });
+    },
+  });
+}
+
+// ─── Admin — Reviews Moderation ──────────────────────────────────────────────
+
+export function useListAllReviews() {
+  const { actor, isFetching } = useActor(createActor);
+  const { isAuthenticated } = useInternetIdentity();
+  return useQuery<Review[]>({
+    queryKey: ["allReviews"],
+    queryFn: async () => {
+      if (!actor) return [];
+      const a = actor as unknown as Record<string, unknown>;
+      if (typeof a.listAllReviews === "function") {
+        return (a.listAllReviews as () => Promise<Review[]>)();
+      }
+      return [];
+    },
+    enabled: !!actor && !isFetching && isAuthenticated,
+  });
+}
+
+export function useApproveReview() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (reviewId: bigint) => {
+      if (!actor) throw new Error("Actor not available");
+      const a = actor as unknown as Record<string, unknown>;
+      if (typeof a.approveReview === "function") {
+        return (a.approveReview as (id: bigint) => Promise<boolean>)(reviewId);
+      }
+      return true;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["allReviews"] });
+    },
+  });
+}
+
+export function useDeleteReview() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (reviewId: bigint) => {
+      if (!actor) throw new Error("Actor not available");
+      const a = actor as unknown as Record<string, unknown>;
+      if (typeof a.deleteReview === "function") {
+        return (a.deleteReview as (id: bigint) => Promise<boolean>)(reviewId);
+      }
+      return true;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["allReviews"] });
+    },
+  });
+}
+
+// ─── Admin — Returns & Refunds ───────────────────────────────────────────────
+
+/** Orders that have refundRequested or refunded status — derived from allOrders until backend adds listAllReturns */
+export function useListAllReturns() {
+  const { actor, isFetching } = useActor(createActor);
+  const { isAuthenticated } = useInternetIdentity();
+  return useQuery<Order[]>({
+    queryKey: ["allReturns"],
+    queryFn: async () => {
+      if (!actor) return [];
+      const a = actor as unknown as Record<string, unknown>;
+      if (typeof a.listAllReturns === "function") {
+        return (a.listAllReturns as () => Promise<Order[]>)();
+      }
+      // Fallback: filter from all orders
+      const all = await actor.listAllOrders(BigInt(0), BigInt(200));
+      return all.filter(
+        (o) => o.status === "refundRequested" || o.status === "refunded",
+      );
+    },
+    enabled: !!actor && !isFetching && isAuthenticated,
+  });
+}
+
+// ─── Admin — Ordered Quantity Report ────────────────────────────────────────
+
+export interface OrderedQuantityRow {
+  productId: bigint;
+  titleEn: string;
+  genre: string;
+  totalUnits: bigint;
+  totalRevenue: bigint;
+}
+
+export function useGetOrderedQuantityReport(
+  fromDate: bigint | null,
+  toDate: bigint | null,
+) {
+  const { actor, isFetching } = useActor(createActor);
+  const { isAuthenticated } = useInternetIdentity();
+  return useQuery<OrderedQuantityRow[]>({
+    queryKey: [
+      "orderedQuantityReport",
+      fromDate?.toString(),
+      toDate?.toString(),
+    ],
+    queryFn: async () => {
+      if (!actor) return [];
+      const a = actor as unknown as Record<string, unknown>;
+      if (typeof a.getOrderedQuantityReport === "function") {
+        return (
+          a.getOrderedQuantityReport as (
+            f: bigint | null,
+            t: bigint | null,
+          ) => Promise<OrderedQuantityRow[]>
+        )(fromDate, toDate);
+      }
+      // Fallback: aggregate from all orders
+      const all = await actor.listAllOrders(BigInt(0), BigInt(500));
+      const map = new Map<
+        string,
+        {
+          productId: bigint;
+          titleEn: string;
+          genre: string;
+          totalUnits: bigint;
+          totalRevenue: bigint;
+        }
+      >();
+      for (const order of all) {
+        const orderTime = order.createdAt;
+        if (fromDate && orderTime < fromDate) continue;
+        if (toDate && orderTime > toDate) continue;
+        for (const item of order.items) {
+          const key = item.productId.toString();
+          const existing = map.get(key);
+          if (existing) {
+            existing.totalUnits += item.quantity;
+            existing.totalRevenue += item.priceInPaisa * item.quantity;
+          } else {
+            map.set(key, {
+              productId: item.productId,
+              titleEn: item.titleEn,
+              genre: "—",
+              totalUnits: item.quantity,
+              totalRevenue: item.priceInPaisa * item.quantity,
+            });
+          }
+        }
+      }
+      return Array.from(map.values()).sort((a, b) =>
+        a.totalUnits > b.totalUnits ? -1 : 1,
+      );
+    },
+    enabled: !!actor && !isFetching && isAuthenticated,
   });
 }
 

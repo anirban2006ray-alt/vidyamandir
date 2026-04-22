@@ -126,4 +126,36 @@ mixin (
     };
     OrderLib.deactivatePromoCode(promoCodes, code);
   };
+
+  /// Update editable fields of a promo code (admin).
+  public shared ({ caller }) func updatePromoCode(code : Text, updates : OrderTypes.PromoCodeUpdateRequest) : async { #ok : Bool; #err : Common.AppError } {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      return #err(#unauthorized);
+    };
+    OrderLib.updatePromoCode(promoCodes, code, updates);
+  };
+
+  /// List all promo codes with usage stats (admin).
+  public query ({ caller }) func listPromoCodes() : async [OrderTypes.PromoCode] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Admins only");
+    };
+    OrderLib.listPromoCodes(promoCodes);
+  };
+
+  /// List orders with refundRequested or refunded status (admin).
+  public query ({ caller }) func listAllReturns() : async [OrderTypes.Order] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Admins only");
+    };
+    OrderLib.listAllReturns(orders);
+  };
+
+  /// Get ordered quantity report, optionally filtered by date range (admin).
+  public query ({ caller }) func getOrderedQuantityReport(fromDate : ?Int, toDate : ?Int) : async [OrderTypes.OrderedQuantityItem] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Admins only");
+    };
+    OrderLib.getOrderedQuantityReport(orders, fromDate, toDate);
+  };
 };

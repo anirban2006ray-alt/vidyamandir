@@ -268,6 +268,107 @@ module {
     };
   };
 
+  /// Update editable fields of an existing promo code (admin).
+  public func updatePromoCode(
+    promoCodes : Map.Map<Text, OrderTypes.PromoCode>,
+    code : Text,
+    updates : OrderTypes.PromoCodeUpdateRequest,
+  ) : { #ok : Bool; #err : Common.AppError } {
+    switch (promoCodes.get(code)) {
+      case null { #err(#notFound) };
+      case (?promo) {
+        let newDiscountPercent = switch (updates.discountPercent) {
+          case (?v) v;
+          case null promo.discountPercent;
+        };
+        if (newDiscountPercent == 0 or newDiscountPercent > 100) {
+          return #err(#invalidInput("Discount percent must be between 1 and 100"));
+        };
+        let updated : OrderTypes.PromoCode = {
+          promo with
+          discountPercent = newDiscountPercent;
+          maxUsageCount = switch (updates.maxUsageCount) {
+            case (?v) ?v;
+            case null promo.maxUsageCount;
+          };
+          minSpendInPaisa = switch (updates.minSpendInPaisa) {
+            case (?v) v;
+            case null promo.minSpendInPaisa;
+          };
+          validUntil = switch (updates.validUntil) {
+            case (?v) v;
+            case null promo.validUntil;
+          };
+          isActive = switch (updates.isActive) {
+            case (?v) v;
+            case null promo.isActive;
+          };
+        };
+        promoCodes.add(code, updated);
+        #ok(true);
+      };
+    };
+  };
+
+  /// List all promo codes (admin).
+  public func listPromoCodes(
+    promoCodes : Map.Map<Text, OrderTypes.PromoCode>,
+  ) : [OrderTypes.PromoCode] {
+    promoCodes.entries()
+      .map<(Text, OrderTypes.PromoCode), OrderTypes.PromoCode>(func((_, p)) { p })
+      .toArray();
+  };
+
+  /// List all orders with status refundRequested or refunded (admin).
+  public func listAllReturns(
+    orders : Map.Map<Common.OrderId, OrderTypes.Order>,
+  ) : [OrderTypes.Order] {
+    orders.entries()
+      .filter(func((_, o)) {
+        switch (o.status) {
+          case (#refundRequested or #refunded) true;
+          case (_) false;
+        }
+      })
+      .map<(Common.OrderId, OrderTypes.Order), OrderTypes.Order>(func((_, o)) { o })
+      .toArray();
+  };
+
+  /// Aggregate ordered quantities per product within an optional date range.
+  public func getOrderedQuantityReport(
+    orders : Map.Map<Common.OrderId, OrderTypes.Order>,
+    fromDate : ?Int,
+    toDate : ?Int,
+  ) : [OrderTypes.OrderedQuantityItem] {
+    let acc = Map.empty<Common.ProductId, (Text, Nat, Nat)>(); // productId -> (title, qty, revenue)
+    orders.entries().forEach(func((_, order)) {
+      let inRange = switch (fromDate, toDate) {
+        case (?from, ?to) { order.createdAt >= from and order.createdAt <= to };
+        case (?from, null) { order.createdAt >= from };
+        case (null, ?to) { order.createdAt <= to };
+        case (null, null) { true };
+      };
+      if (inRange) {
+        for (item in order.items.values()) {
+          let revenue = item.quantity * item.priceInPaisa;
+          switch (acc.get(item.productId)) {
+            case null {
+              acc.add(item.productId, (item.titleEn, item.quantity, revenue));
+            };
+            case (?(title, qty, rev)) {
+              acc.add(item.productId, (title, qty + item.quantity, rev + revenue));
+            };
+          };
+        };
+      };
+    });
+    acc.entries()
+      .map<(Common.ProductId, (Text, Nat, Nat)), OrderTypes.OrderedQuantityItem>(func((productId, (productTitle, totalOrdered, totalRevenue))) {
+        { productId; productTitle; totalOrdered; totalRevenue };
+      })
+      .toArray();
+  };
+
   // ── Orders ─────────────────────────────────────────────────────────────────
 
   /// Creates an order with full validation:

@@ -113,6 +113,14 @@ type Question =
    productId: ProductId;
    questionText: text;
  };
+type PromoCodeUpdateRequest = 
+ record {
+   discountPercent: opt nat;
+   isActive: opt bool;
+   maxUsageCount: opt nat;
+   minSpendInPaisa: opt nat;
+   validUntil: opt Timestamp;
+ };
 type PromoCodeId = nat;
 type PromoCode = 
  record {
@@ -167,6 +175,13 @@ type ProductFilter =
    minPriceInPaisa: opt nat;
    minRating: opt float64;
    searchQuery: opt text;
+ };
+type OrderedQuantityItem = 
+ record {
+   productId: ProductId;
+   productTitle: text;
+   totalOrdered: nat;
+   totalRevenue: nat;
  };
 type OrderStatus = 
  variant {
@@ -324,6 +339,19 @@ type Answer =
    id: AnswerId;
    questionId: QuestionId;
  };
+type AdminReviewView = 
+ record {
+   bodyEn: text;
+   createdAt: Timestamp;
+   helpfulVotes: nat;
+   id: ReviewId;
+   isApproved: bool;
+   isVerifiedPurchase: bool;
+   productId: ProductId;
+   rating: nat;
+   titleEn: text;
+   userId: UserId;
+ };
 type AdminAnalytics = 
  record {
    bestsellers: vec record {
@@ -380,6 +408,16 @@ service : {
                                               err: AppError;
                                               ok;
                                             });
+  adminApproveReview: (reviewId: ReviewId, approved: bool) ->
+   (variant {
+      err: AppError;
+      ok: bool;
+    });
+  adminDeleteReview: (reviewId: ReviewId) ->
+   (variant {
+      err: AppError;
+      ok: bool;
+    });
   askQuestion: (productId: ProductId, questionText: text) ->
    (variant {
       err: AppError;
@@ -422,6 +460,8 @@ service : {
   getCart: () -> (vec CartItem) query;
   getFlashSale: (id: FlashSaleId) -> (opt FlashSaleView) query;
   getOrder: (orderId: OrderId) -> (opt Order) query;
+  getOrderedQuantityReport: (fromDate: opt int, toDate: opt int) ->
+   (vec OrderedQuantityItem) query;
   getProduct: (id: ProductId) -> (opt ProductView) query;
   getRecentlyViewed: () -> (vec ProductView) query;
   getReview: (id: ReviewId) -> (opt Review) query;
@@ -433,11 +473,14 @@ service : {
   listAddresses: () -> (vec Address) query;
   listAllEnquiries: () -> (vec Enquiry) query;
   listAllOrders: (offset: nat, limit: nat) -> (vec Order) query;
+  listAllReturns: () -> (vec Order) query;
+  listAllReviews: () -> (vec AdminReviewView) query;
   listAnswers: (questionId: QuestionId) -> (vec Answer) query;
   listFlashSales: (activeOnly: bool) -> (vec FlashSaleView) query;
   listMyOrders: () -> (vec Order) query;
   listProducts: (filterOpt: opt ProductFilter, sortOpt: opt ProductSort,
    offset: nat, limit: nat) -> (vec ProductView) query;
+  listPromoCodes: () -> (vec PromoCode) query;
   listQuestions: (productId: ProductId) -> (vec Question) query;
   listReviews: (productId: ProductId) -> (vec Review) query;
   listReviewsSorted: (productId: ProductId, sortMode:
@@ -482,6 +525,11 @@ service : {
   updateOrderStatus: (orderId: OrderId, status: OrderStatus, note: text,
    estimatedDeliveryDate: opt int, courierNote: opt text) -> (bool);
   updateProduct: (input: UpdateProductInput) ->
+   (variant {
+      err: AppError;
+      ok: bool;
+    });
+  updatePromoCode: (code: text, updates: PromoCodeUpdateRequest) ->
    (variant {
       err: AppError;
       ok: bool;

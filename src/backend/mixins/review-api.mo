@@ -92,4 +92,30 @@ mixin (
     AccessControl.initialize(accessControlState, caller);
     ReviewLib.voteAnswerHelpful(answers, answerId, caller);
   };
+
+  // ── Admin review management ───────────────────────────────────────────────
+
+  /// List all reviews across all products (admin only), sorted by date.
+  public query ({ caller }) func listAllReviews() : async [ReviewTypes.AdminReviewView] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Admins only");
+    };
+    ReviewLib.listAllReviews(reviews);
+  };
+
+  /// Delete any review by ID (admin only).
+  public shared ({ caller }) func adminDeleteReview(reviewId : Common.ReviewId) : async { #ok : Bool; #err : Common.AppError } {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      return #err(#unauthorized);
+    };
+    ReviewLib.adminDeleteReview(reviews, reviewId);
+  };
+
+  /// Set approved/unapproved state on a review (admin only).
+  public shared ({ caller }) func adminApproveReview(reviewId : Common.ReviewId, approved : Bool) : async { #ok : Bool; #err : Common.AppError } {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      return #err(#unauthorized);
+    };
+    ReviewLib.adminApproveReview(reviews, reviewId, approved);
+  };
 };

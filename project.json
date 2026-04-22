@@ -1,26 +1,25 @@
 {
-  "overview": "Vidyamandir is a bilingual (English & Bengali) e-commerce bookshop for a local store in Purba Bardhaman, West Bengal. Features include flash sales, cart, wishlist, Stripe checkout, order tracking, reviews, Q&A, admin dashboard, and WhatsApp contact.",
+  "overview": "Vidyamandir is a bilingual (English & Bengali) e-commerce bookshop for a local store in Purba Bardhaman, West Bengal. It features a premium dark navy and orange editorial design with full shopping, admin, and order management capabilities.",
   "features": [
     "Bilingual product catalog (English & Bengali)",
     "Flash sales with live countdowns",
-    "Cart, wishlist, and Stripe checkout",
-    "Extended order tracking timeline",
-    "Customer reviews and Q&A",
-    "Admin dashboard with password gate",
-    "Customer enquiry form with backend storage",
+    "Cart, wishlist, and order management",
+    "Admin dashboard with 9 management tabs",
+    "Reviews moderation and enquiry management",
+    "Returns & refunds approval workflow",
+    "Promo code management",
+    "Ordered quantity reports",
     "WhatsApp contact integration",
-    "Responsive dark navy and orange editorial design"
+    "Staff Admin footer link"
   ],
   "category": "e-commerce",
   "tags": [
     "bookshop",
-    "ecommerce",
+    "e-commerce",
     "bilingual",
-    "bengali",
+    "admin",
     "india",
-    "books",
-    "stripe",
-    "admin"
+    "bengali"
   ],
-  "last_updated": "2026-04-20T14:14:13.847Z"
+  "last_updated": "2026-04-22T04:01:29.914Z"
 }
