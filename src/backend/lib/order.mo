@@ -3,6 +3,8 @@ import List "mo:core/List";
 import Set "mo:core/Set";
 import Time "mo:core/Time";
 import Int "mo:core/Int";
+import Text "mo:core/Text";
+import Char "mo:core/Char";
 import Common "../types/common";
 import OrderTypes "../types/order";
 import CatalogTypes "../types/catalog";
@@ -10,13 +12,42 @@ import CatalogTypes "../types/catalog";
 module {
   // ── Address validation helpers ─────────────────────────────────────────────
 
+  /// Strip non-digit characters and count digits only.
+  func countDigits(t : Text) : Nat {
+    var n = 0;
+    for (c in t.toIter()) {
+      if (c.isDigit()) { n += 1 };
+    };
+    n;
+  };
+
+  /// Validate an Indian phone number: 10 digits, optionally +91 or 0 prefix.
+  func isValidPhone(phone : Text) : Bool {
+    var digits : Text = "";
+    for (c in phone.toIter()) {
+      if (c.isDigit()) { digits #= c.toText() };
+    };
+    let len = digits.size();
+    if (len == 10) return true;
+    if (len == 12) {
+      let prefix = Text.fromArray(digits.toArray().sliceToArray(0, 2));
+      return prefix == "91";
+    };
+    if (len == 11) {
+      return digits.toArray()[0] == '0';
+    };
+    false;
+  };
+
   func validateAddressInput(input : OrderTypes.AddressInput) : ?Text {
     if (input.fullName.size() == 0) return ?"Full name is required";
-    if (input.phone.size() < 7) return ?"Phone number is too short";
+    if (not isValidPhone(input.phone)) return ?"Phone must be a valid 10-digit Indian number (optionally with +91 or 0 prefix)";
     if (input.line1.size() == 0) return ?"Address line 1 is required";
     if (input.city.size() == 0) return ?"City is required";
     if (input.state.size() == 0) return ?"State is required";
     if (input.pincode.size() != 6) return ?"Pincode must be exactly 6 digits";
+    // Pincode must be all digits
+    if (countDigits(input.pincode) != 6) return ?"Pincode must contain only digits";
     null;
   };
 
@@ -39,7 +70,7 @@ module {
     input : OrderTypes.AddressInput,
   ) : { #ok : Common.AddressId; #err : Common.AppError } {
     switch (validateAddressInput(input)) {
-      case (?msg) { return #err(#invalidInput(msg)) };
+      case (?msg) { return #err(#validationError(msg)) };
       case null {};
     };
     let userAddresses = switch (addresses.get(userId)) {
@@ -79,7 +110,7 @@ module {
     input : OrderTypes.AddressInput,
   ) : { #ok : Bool; #err : Common.AppError } {
     switch (validateAddressInput(input)) {
-      case (?msg) { return #err(#invalidInput(msg)) };
+      case (?msg) { return #err(#validationError(msg)) };
       case null {};
     };
     switch (addresses.get(userId)) {
@@ -227,17 +258,17 @@ module {
     validUntil : Common.Timestamp,
   ) : { #ok : Common.PromoCodeId; #err : Common.AppError } {
     if (code.size() == 0) {
-      return #err(#invalidInput("Promo code cannot be empty"));
+      return #err(#validationError("Promo code cannot be empty"));
     };
     if (discountPercent == 0 or discountPercent > 100) {
-      return #err(#invalidInput("Discount percent must be between 1 and 100"));
+      return #err(#validationError("Discount percent must be between 1 and 100"));
     };
     if (validUntil <= validFrom) {
-      return #err(#invalidInput("validUntil must be after validFrom"));
+      return #err(#validationError("validUntil must be after validFrom"));
     };
     // Reject duplicate code
     if (promoCodes.containsKey(code)) {
-      return #err(#alreadyExists);
+      return #err(#duplicateEntry);
     };
     let promo : OrderTypes.PromoCode = {
       id = nextId;
@@ -282,7 +313,7 @@ module {
           case null promo.discountPercent;
         };
         if (newDiscountPercent == 0 or newDiscountPercent > 100) {
-          return #err(#invalidInput("Discount percent must be between 1 and 100"));
+          return #err(#validationError("Discount percent must be between 1 and 100"));
         };
         let updated : OrderTypes.PromoCode = {
           promo with
@@ -371,30 +402,64 @@ module {
 
   // ── Orders ─────────────────────────────────────────────────────────────────
 
-  /// Creates an order with full validation:
+  /// Creates an order with full validation and idempotency:
   /// 1. Address must exist for caller.
   /// 2. Each item must exist in catalog and have sufficient stock.
   /// 3. Promo code validated with detailed error variants.
-  /// 4. Idempotency key (caller + timestamp) prevents duplicate submissions.
-  /// 5. Stock is decremented for each item on success.
+  /// 4. Idempotency key dedup: if key provided and exists, return existing orderId.
+  /// 5. Stripe payment intent dedup as fallback.
+  /// 6. Stock is decremented for each item on success.
   public func createOrder(
     orders : Map.Map<Common.OrderId, OrderTypes.Order>,
     addresses : Map.Map<Common.UserId, List.List<OrderTypes.Address>>,
     promoCodes : Map.Map<Text, OrderTypes.PromoCode>,
     products : Map.Map<Common.ProductId, CatalogTypes.Product>,
     purchasedProductsByUser : Map.Map<Common.UserId, Set.Set<Common.ProductId>>,
+    orderIdempotencyKeys : Map.Map<Text, Common.IdempotencyEntry>,
     nextOrderId : Nat,
     userId : Common.UserId,
     input : OrderTypes.CreateOrderInput,
   ) : { #ok : Common.OrderId; #err : Common.AppError } {
     // Validate items array is not empty
     if (input.items.size() == 0) {
-      return #err(#invalidInput("Order must contain at least one item"));
+      return #err(#validationError("Order must contain at least one item"));
     };
 
     // Validate stripePaymentIntentId
     if (input.stripePaymentIntentId.size() == 0) {
-      return #err(#invalidInput("Stripe payment intent ID is required"));
+      return #err(#validationError("Stripe payment intent ID is required"));
+    };
+
+    // ── Idempotency key check (explicit key from input) ──────────────────────
+    let now = Time.now();
+    let oneDayNs : Int = 86_400_000_000_000; // 24 hours in nanoseconds
+
+    switch (input.idempotencyKey) {
+      case (?key) {
+        switch (orderIdempotencyKeys.get(key)) {
+          case (?entry) {
+            // Prune expired entry silently and fall through to create new
+            if (now - entry.createdAt < oneDayNs) {
+              return #ok(entry.orderId);
+            } else {
+              orderIdempotencyKeys.remove(key);
+            };
+          };
+          case null {};
+        };
+      };
+      case null {};
+    };
+
+    // ── Stripe payment intent dedup (fallback) ───────────────────────────────
+    let existingDuplicate = orders.entries().find(func((_, o)) {
+      o.userId == userId and o.stripePaymentIntentId == input.stripePaymentIntentId
+    });
+    if (existingDuplicate != null) {
+      switch (existingDuplicate) {
+        case (?(_, existing)) { return #ok(existing.id) };
+        case null {};
+      };
     };
 
     // Resolve shipping address
@@ -411,7 +476,7 @@ module {
     // Validate all items: existence and stock
     for (item in input.items.values()) {
       if (item.quantity == 0) {
-        return #err(#invalidInput("Item quantity must be at least 1"));
+        return #err(#validationError("Item quantity must be at least 1"));
       };
       switch (products.get(item.productId)) {
         case null { return #err(#notFound) };
@@ -423,18 +488,6 @@ module {
       };
     };
 
-    // Check idempotency — reject if a recent order with the same stripe intent already exists
-    let existingDuplicate = orders.entries().find(func((_, o)) {
-      o.userId == userId and o.stripePaymentIntentId == input.stripePaymentIntentId
-    });
-    if (existingDuplicate != null) {
-      // Return the existing order ID instead of creating a duplicate
-      switch (existingDuplicate) {
-        case (?(_, existing)) { return #ok(existing.id) };
-        case null {};
-      };
-    };
-
     // Calculate total
     var totalInPaisa : Nat = 0;
     for (item in input.items.values()) {
@@ -442,7 +495,6 @@ module {
     };
 
     // Apply promo code if provided
-    let now = Time.now();
     var discountInPaisa : Nat = 0;
     var promoCodeApplied : ?Text = null;
     switch (input.promoCode) {
@@ -456,10 +508,10 @@ module {
           };
           case (#notFound) { return #err(#notFound) };
           case (#expired) { return #err(#expired) };
-          case (#ineligible) { return #err(#invalidInput("Promo code is not currently active")) };
+          case (#ineligible) { return #err(#validationError("Promo code is not currently active")) };
           case (#limitExceeded) { return #err(#limitExceeded) };
           case (#minSpend(required)) { return #err(#minSpend(required)) };
-          case (#alreadyUsed) { return #err(#invalidInput("You have already used this promo code")) };
+          case (#alreadyUsed) { return #err(#validationError("You have already used this promo code")) };
         };
       };
     };
@@ -470,8 +522,8 @@ module {
       if (diff >= 0) Int.abs(diff) else 0;
     };
 
-    // Build idempotency key
-    let idempotencyKey = userId.toText() # ":" # input.stripePaymentIntentId;
+    // Build internal idempotency key from stripe payment intent
+    let internalKey = userId.toText() # ":" # input.stripePaymentIntentId;
 
     let orderId = nextOrderId;
     let initialStatus : OrderTypes.StatusUpdate = {
@@ -488,7 +540,7 @@ module {
       status = #processing;
       statusHistory = [initialStatus];
       stripePaymentIntentId = input.stripePaymentIntentId;
-      idempotencyKey = idempotencyKey;
+      idempotencyKey = internalKey;
       promoCodeApplied = promoCodeApplied;
       discountInPaisa = discountInPaisa;
       estimatedDeliveryDate = null;
@@ -497,6 +549,14 @@ module {
       updatedAt = now;
     };
     orders.add(orderId, newOrder);
+
+    // Store explicit idempotency key → orderId if provided
+    switch (input.idempotencyKey) {
+      case (?key) {
+        orderIdempotencyKeys.add(key, { orderId; createdAt = now });
+      };
+      case null {};
+    };
 
     // Decrement stock for each ordered item
     for (item in input.items.values()) {
@@ -595,6 +655,47 @@ module {
         };
         orders.add(orderId, updated);
         true;
+      };
+    };
+  };
+
+  /// User-initiated return/refund request.
+  /// Only orders owned by the caller and in 'delivered' status can be returned.
+  /// Returns #ok(orderId) on success or a structured error.
+  public func requestReturn(
+    orders : Map.Map<Common.OrderId, OrderTypes.Order>,
+    orderId : Common.OrderId,
+    callerId : Common.UserId,
+    reason : Text,
+  ) : { #ok : Common.OrderId; #err : Common.AppError } {
+    switch (orders.get(orderId)) {
+      case null { #err(#notFound) };
+      case (?order) {
+        if (order.userId != callerId) {
+          return #err(#unauthorized);
+        };
+        switch (order.status) {
+          case (#delivered) {};
+          case (#refundRequested) { return #err(#invalidInput("Return has already been requested for this order")) };
+          case (#refunded) { return #err(#invalidInput("This order has already been refunded")) };
+          case (_) { return #err(#invalidInput("Only delivered orders can be returned")) };
+        };
+        let now = Time.now();
+        let trimmedReason = if (reason.size() > 500) Text.fromArray(reason.toArray().sliceToArray(0, 500)) else reason;
+        let note = if (trimmedReason.size() > 0) "Return requested. Reason: " # trimmedReason else "Return requested.";
+        let statusEntry : OrderTypes.StatusUpdate = {
+          status = #refundRequested;
+          updatedAt = now;
+          note;
+        };
+        let updated : OrderTypes.Order = {
+          order with
+          status = #refundRequested;
+          statusHistory = order.statusHistory.concat([statusEntry]);
+          updatedAt = now;
+        };
+        orders.add(orderId, updated);
+        #ok(orderId);
       };
     };
   };

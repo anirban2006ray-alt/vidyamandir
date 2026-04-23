@@ -176,6 +176,18 @@ type ProductFilter =
    minRating: opt float64;
    searchQuery: opt text;
  };
+type PagedResult_1 = 
+ record {
+   hasMore: bool;
+   items: vec Enquiry;
+   totalCount: nat;
+ };
+type PagedResult = 
+ record {
+   hasMore: bool;
+   items: vec AdminReviewView;
+   totalCount: nat;
+ };
 type OrderedQuantityItem = 
  record {
    productId: ProductId;
@@ -296,6 +308,7 @@ type CreateProductInput =
  };
 type CreateOrderInput = 
  record {
+   idempotencyKey: opt text;
    items: vec OrderItem;
    promoCode: opt text;
    shippingAddressId: AddressId;
@@ -321,13 +334,17 @@ type AppError =
    alreadyExists;
    alreadyReviewed;
    alreadyVoted;
+   duplicateEntry;
    expired;
    insufficientStock;
    invalidInput: text;
    limitExceeded;
    minSpend: nat;
    notFound;
+   rateLimitExceeded;
+   serverError: text;
    unauthorized;
+   validationError: text;
  };
 type AnswerId = nat;
 type Answer = 
@@ -338,6 +355,15 @@ type Answer =
    helpfulVotes: nat;
    id: AnswerId;
    questionId: QuestionId;
+ };
+type AnalyticsEvent = 
+ record {
+   amount: opt nat;
+   eventType: text;
+   orderId: opt OrderId;
+   productId: opt ProductId;
+   timestamp: Timestamp;
+   userId: text;
  };
 type AdminReviewView = 
  record {
@@ -452,13 +478,21 @@ service : {
   deactivateFlashSale: (id: FlashSaleId) -> (bool);
   deactivatePromoCode: (code: text) -> (bool);
   deleteAddress: (addressId: AddressId) -> (bool);
+  deleteEnquiry: (id: text) -> (bool);
+  deleteMyReview: (reviewId: ReviewId) -> (variant {
+                                             err: AppError;
+                                             ok: bool;
+                                           });
   deleteProduct: (id: ProductId) -> (bool);
   downloadInvoice: (orderId: OrderId) -> (text) query;
-  getAdminAnalytics: () -> (AdminAnalytics) query;
+  getAdminAnalytics: () -> (AdminAnalytics);
+  getAnalyticsEvents: (offset: nat, limit: nat) -> (vec AnalyticsEvent) query;
   getCallerUserProfile: () -> (opt UserProfile) query;
   getCallerUserRole: () -> (UserRole) query;
   getCart: () -> (vec CartItem) query;
+  getEnquiryCount: () -> (nat) query;
   getFlashSale: (id: FlashSaleId) -> (opt FlashSaleView) query;
+  getMyEnquiries: (email: text) -> (vec Enquiry) query;
   getOrder: (orderId: OrderId) -> (opt Order) query;
   getOrderedQuantityReport: (fromDate: opt int, toDate: opt int) ->
    (vec OrderedQuantityItem) query;
@@ -466,18 +500,22 @@ service : {
   getRecentlyViewed: () -> (vec ProductView) query;
   getReview: (id: ReviewId) -> (opt Review) query;
   getStripeSessionStatus: (sessionId: text) -> (StripeSessionStatus);
+  getTopProducts: (limit: nat) -> (vec ProductView) query;
   getUserProfile: (user: UserId) -> (opt UserProfile) query;
   getWishlist: () -> (vec ProductId) query;
   isCallerAdmin: () -> (bool) query;
   isStripeConfigured: () -> (bool) query;
   listAddresses: () -> (vec Address) query;
   listAllEnquiries: () -> (vec Enquiry) query;
+  listAllEnquiriesPaged: (offset: nat, limit: nat) -> (PagedResult_1) query;
   listAllOrders: (offset: nat, limit: nat) -> (vec Order) query;
   listAllReturns: () -> (vec Order) query;
   listAllReviews: () -> (vec AdminReviewView) query;
+  listAllReviewsPaged: (offset: nat, limit: nat) -> (PagedResult) query;
   listAnswers: (questionId: QuestionId) -> (vec Answer) query;
   listFlashSales: (activeOnly: bool) -> (vec FlashSaleView) query;
   listMyOrders: () -> (vec Order) query;
+  listMyReviews: () -> (vec Review) query;
   listProducts: (filterOpt: opt ProductFilter, sortOpt: opt ProductSort,
    offset: nat, limit: nat) -> (vec ProductView) query;
   listPromoCodes: () -> (vec PromoCode) query;
@@ -497,6 +535,11 @@ service : {
   recordRecentlyViewed: (productId: ProductId) -> ();
   removeFromCart: (productId: ProductId) -> ();
   removeFromWishlist: (productId: ProductId) -> ();
+  requestReturn: (orderId: OrderId, reason: text) ->
+   (variant {
+      err: AppError;
+      ok: OrderId;
+    });
   saveCallerUserProfile: (profile: UserProfile) ->
    (variant {
       err: AppError;

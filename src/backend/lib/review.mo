@@ -3,11 +3,100 @@ import Set "mo:core/Set";
 import Time "mo:core/Time";
 import Nat "mo:core/Nat";
 import Int "mo:core/Int";
+import Text "mo:core/Text";
 import Principal "mo:core/Principal";
 import Common "../types/common";
 import ReviewTypes "../types/review";
 
 module {
+  // ── HTML sanitization ────────────────────────────────────────────────────
+
+  /// Strip dangerous HTML tags and their content: <script>, <iframe>, <object>, <embed>.
+  /// Also strips all remaining HTML tags, leaving plain text.
+  func sanitizeHtml(input : Text) : Text {
+    // We perform a simple state-machine pass over the characters.
+    // States: #text (normal), #inTag (inside any HTML tag)
+    // For dangerous tags we discard all content up to and including </tag>.
+    var result : Text = "";
+    let chars = input.toArray();
+    let len = chars.size();
+    var i = 0;
+
+    while (i < len) {
+      if (chars[i] == '<') {
+        // peek at tag name
+        var j = i + 1;
+        // skip optional '/'
+        if (j < len and chars[j] == '/') { j += 1 };
+        // collect tag name chars (alpha only)
+        var tagName : Text = "";
+        while (j < len and chars[j] != '>' and chars[j] != ' ' and chars[j] != '\n') {
+          let c = chars[j];
+          if ((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z')) {
+            tagName #= Text.fromChar(c);
+          };
+          j += 1;
+        };
+        let lowerTag = tagName.toLower();
+        let isDangerous = lowerTag == "script" or lowerTag == "iframe" or
+                          lowerTag == "object" or lowerTag == "embed";
+        if (isDangerous) {
+          // skip everything until we find </tagName>
+          let closeTag = "</" # lowerTag;
+          var found = false;
+          var k = i + 1;
+          while (k < len and not found) {
+            if (chars[k] == '<') {
+              // check if this is the closing tag
+              var m = k;
+              var candidate : Text = "";
+              while (m < len and candidate.size() < closeTag.size()) {
+                candidate #= Text.fromChar(chars[m]);
+                m += 1;
+              };
+              if (candidate.toLower() == closeTag) {
+                // advance past the full closing tag including '>'
+                while (m < len and chars[m] != '>') { m += 1 };
+                i := m + 1;
+                found := true;
+              } else {
+                k += 1;
+              };
+            } else {
+              k += 1;
+            };
+          };
+          if (not found) {
+            // No closing tag found — skip to end
+            i := len;
+          };
+        } else {
+          // safe tag — just skip the whole tag (strip it, keep text content)
+          while (i < len and chars[i] != '>') { i += 1 };
+          i += 1; // skip '>'
+        };
+      } else {
+        result #= Text.fromChar(chars[i]);
+        i += 1;
+      };
+    };
+    result;
+  };
+
+  /// Trim leading/trailing whitespace.
+  func trimText(t : Text) : Text {
+    let chars = t.toArray();
+    var start = 0;
+    var end = chars.size();
+    while (start < end and (chars[start] == ' ' or chars[start] == '\n' or chars[start] == '\t' or chars[start] == '\r')) {
+      start += 1;
+    };
+    while (end > start and (chars[end - 1] == ' ' or chars[end - 1] == '\n' or chars[end - 1] == '\t' or chars[end - 1] == '\r')) {
+      end -= 1;
+    };
+    Text.fromArray(chars.sliceToArray(start, end));
+  };
+
   // ── Shared-type converters ───────────────────────────────────────────────
 
   public func reviewToPublic(r : ReviewTypes.ReviewInternal) : ReviewTypes.Review {
@@ -93,7 +182,7 @@ module {
 
   /// Creates a new review.
   /// Returns #ok(ReviewId) or a structured AppError.
-  /// Enforces: rating 1-5, text lengths, no duplicate review per user per product.
+  /// Enforces: rating 1-5, text lengths, HTML sanitization, no duplicate review per user per product.
   public func createReview(
     reviews : Map.Map<Common.ReviewId, ReviewTypes.ReviewInternal>,
     purchasedProductsByUser : Map.Map<Common.UserId, Set.Set<Common.ProductId>>,
@@ -103,21 +192,28 @@ module {
   ) : { #ok : Common.ReviewId; #err : Common.AppError } {
     // Validate rating
     if (input.rating < 1 or input.rating > 5) {
-      return #err(#invalidInput("Rating must be between 1 and 5"));
+      return #err(#validationError("Rating must be between 1 and 5"));
     };
-    // Validate review title
-    let titleLen = input.titleEn.size();
-    if (titleLen == 0) {
-      return #err(#invalidInput("Review title cannot be empty"));
+
+    // Sanitize and validate review title
+    let cleanTitle = sanitizeHtml(trimText(input.titleEn));
+    if (cleanTitle.size() == 0) {
+      return #err(#validationError("Review title cannot be empty"));
     };
-    // Validate review body length (10-1000 chars)
-    let bodyLen = input.bodyEn.size();
+    if (cleanTitle.size() > 200) {
+      return #err(#validationError("Review title must not exceed 200 characters"));
+    };
+
+    // Sanitize and validate review body (10–2000 chars)
+    let cleanBody = sanitizeHtml(trimText(input.bodyEn));
+    let bodyLen = cleanBody.size();
     if (bodyLen < 10) {
-      return #err(#invalidInput("Review body must be at least 10 characters"));
+      return #err(#validationError("Review body must be at least 10 characters"));
     };
-    if (bodyLen > 1000) {
-      return #err(#invalidInput("Review body must not exceed 1000 characters"));
+    if (bodyLen > 2000) {
+      return #err(#validationError("Review body must not exceed 2000 characters"));
     };
+
     // Prevent duplicate review from same user for same product
     let hasDuplicate = switch (reviews.entries().find(func((_, r)) {
       Principal.equal(r.userId, userId) and r.productId == input.productId
@@ -139,8 +235,8 @@ module {
       productId = input.productId;
       userId;
       rating = input.rating;
-      titleEn = input.titleEn;
-      bodyEn = input.bodyEn;
+      titleEn = cleanTitle;
+      bodyEn = cleanBody;
       isVerifiedPurchase = isVerified;
       helpfulVotes = 0;
       helpfulVoters = Set.empty<Common.UserId>();
@@ -195,10 +291,10 @@ module {
   ) : { #ok : Common.QuestionId; #err : Common.AppError } {
     let len = questionText.size();
     if (len < 10) {
-      return #err(#invalidInput("Question must be at least 10 characters"));
+      return #err(#validationError("Question must be at least 10 characters"));
     };
     if (len > 500) {
-      return #err(#invalidInput("Question must not exceed 500 characters"));
+      return #err(#validationError("Question must not exceed 500 characters"));
     };
     let question : ReviewTypes.Question = {
       id = nextId;
@@ -237,10 +333,10 @@ module {
     };
     let len = answerText.size();
     if (len < 5) {
-      return #err(#invalidInput("Answer must be at least 5 characters"));
+      return #err(#validationError("Answer must be at least 5 characters"));
     };
     if (len > 250) {
-      return #err(#invalidInput("Answer must not exceed 250 characters"));
+      return #err(#validationError("Answer must not exceed 250 characters"));
     };
     let answer : ReviewTypes.AnswerInternal = {
       id = nextId;
@@ -271,6 +367,38 @@ module {
         let newVoters = a.helpfulVoters.clone();
         newVoters.add(voterId);
         answers.add(answerId, { a with helpfulVotes = a.helpfulVotes + 1; helpfulVoters = newVoters });
+        #ok(true);
+      };
+    };
+  };
+
+  // ── User self-service ─────────────────────────────────────────────────────
+
+  /// List all reviews submitted by a specific user.
+  public func listReviewsByUser(
+    reviews : Map.Map<Common.ReviewId, ReviewTypes.ReviewInternal>,
+    userId : Common.UserId,
+  ) : [ReviewTypes.Review] {
+    reviews.entries()
+      .filter(func((_, r)) { Principal.equal(r.userId, userId) })
+      .map<(Common.ReviewId, ReviewTypes.ReviewInternal), ReviewTypes.Review>(func((_, r)) { reviewToPublic(r) })
+      .toArray();
+  };
+
+  /// Delete a review authored by the calling user.
+  /// Returns #ok(true) on success, #err(#notFound) if not found, #err(#unauthorized) if not owner.
+  public func deleteOwnReview(
+    reviews : Map.Map<Common.ReviewId, ReviewTypes.ReviewInternal>,
+    reviewId : Common.ReviewId,
+    callerId : Common.UserId,
+  ) : { #ok : Bool; #err : Common.AppError } {
+    switch (reviews.get(reviewId)) {
+      case null { #err(#notFound) };
+      case (?r) {
+        if (not Principal.equal(r.userId, callerId)) {
+          return #err(#unauthorized);
+        };
+        reviews.remove(reviewId);
         #ok(true);
       };
     };

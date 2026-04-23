@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,8 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { MessageCircle, Send, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { AppError } from "../backend.d.ts";
 import { useLanguage } from "../hooks/use-language";
 import { useSubmitEnquiry } from "../hooks/useQueries";
+import { getErrorMessage } from "../lib/utils";
 
 interface EnquiryFormFields {
   name: string;
@@ -47,10 +48,17 @@ export function FloatingEnquiry() {
             setSubmitted(false);
           }, 2500);
         } else {
-          toast.error("Could not send enquiry. Please try again.");
+          // result.__kind__ === "err" — show specific backend error message
+          toast.error(getErrorMessage(result.err));
         }
       },
-      onError: () => toast.error("Failed to send enquiry. Please try again."),
+      onError: (err) => {
+        const msg =
+          err && typeof err === "object" && "__kind__" in err
+            ? getErrorMessage(err as unknown as AppError)
+            : "Failed to send enquiry. Please try again.";
+        toast.error(msg);
+      },
     });
   };
 

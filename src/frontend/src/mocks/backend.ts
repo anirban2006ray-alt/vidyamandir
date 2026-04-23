@@ -264,7 +264,16 @@ export const mockBackend: backendInterface = {
   }],
   submitEnquiry: async () => ({ __kind__: "ok" as const, ok: "mock-enquiry-id" }),
   updateEnquiryStatus: async () => true,
+  deleteEnquiry: async () => true,
+  getEnquiryCount: async () => BigInt(1),
+  listAllEnquiriesPaged: async () => ({ hasMore: false, totalCount: BigInt(1), items: [] }),
   listAllReturns: async () => [],
+  listMyReviews: async () => [],
+  deleteMyReview: async () => ({ __kind__: "ok" as const, ok: true }),
+  getAnalyticsEvents: async () => [
+    { userId: "mock-user", eventType: "purchase", timestamp: BigInt(Date.now() - 3600000), productId: BigInt(1), orderId: BigInt(1), amount: BigInt(35000) },
+    { userId: "mock-user-2", eventType: "review", timestamp: BigInt(Date.now() - 7200000), productId: BigInt(2), orderId: undefined, amount: undefined },
+  ],
   listAllReviews: async () => [
     {
       id: BigInt(1),
@@ -279,6 +288,7 @@ export const mockBackend: backendInterface = {
       titleEn: "Classic masterpiece",
     },
   ],
+  listAllReviewsPaged: async () => ({ hasMore: false, totalCount: BigInt(1), items: [] }),
   listAnswers: async () => [
     {
       id: BigInt(1),
@@ -388,10 +398,13 @@ export const mockBackend: backendInterface = {
   recordRecentlyViewed: async () => undefined,
   removeFromCart: async () => undefined,
   removeFromWishlist: async () => undefined,
+  requestReturn: async () => ({ __kind__: "ok" as const, ok: BigInt(1) }),
   saveCallerUserProfile: async () => ({ __kind__: "ok" as const, ok: null }),
   searchProducts: async () => [sampleProduct, sampleProduct2],
   setDefaultAddress: async () => true,
   setStripeConfiguration: async () => undefined,
+  getMyEnquiries: async () => [],
+  getTopProducts: async () => [sampleProduct, sampleProduct2, sampleProduct3],
   transform: async (input) => ({ status: BigInt(200), body: input.response.body, headers: [] }),
   updateAddress: async () => ({ __kind__: "ok" as const, ok: true }),
   updateCartQuantity: async () => ({ __kind__: "ok" as const, ok: null }),

@@ -56,6 +56,14 @@ export interface AdminReviewView {
   'helpfulVotes' : bigint,
   'titleEn' : string,
 }
+export interface AnalyticsEvent {
+  'userId' : string,
+  'productId' : [] | [ProductId],
+  'orderId' : [] | [OrderId],
+  'timestamp' : Timestamp,
+  'amount' : [] | [bigint],
+  'eventType' : string,
+}
 export interface Answer {
   'id' : AnswerId,
   'createdAt' : Timestamp,
@@ -65,10 +73,14 @@ export interface Answer {
   'answeredBy' : UserId,
 }
 export type AnswerId = bigint;
-export type AppError = { 'expired' : null } |
+export type AppError = { 'rateLimitExceeded' : null } |
+  { 'serverError' : string } |
+  { 'validationError' : string } |
+  { 'expired' : null } |
   { 'alreadyVoted' : null } |
   { 'alreadyExists' : null } |
   { 'invalidInput' : string } |
+  { 'duplicateEntry' : null } |
   { 'minSpend' : bigint } |
   { 'notFound' : null } |
   { 'limitExceeded' : null } |
@@ -89,6 +101,7 @@ export interface CreateFlashSaleInput {
   'titleEn' : string,
 }
 export interface CreateOrderInput {
+  'idempotencyKey' : [] | [string],
   'shippingAddressId' : AddressId,
   'promoCode' : [] | [string],
   'stripePaymentIntentId' : string,
@@ -191,6 +204,16 @@ export interface OrderedQuantityItem {
   'productTitle' : string,
   'productId' : ProductId,
   'totalRevenue' : bigint,
+}
+export interface PagedResult {
+  'hasMore' : boolean,
+  'totalCount' : bigint,
+  'items' : Array<AdminReviewView>,
+}
+export interface PagedResult_1 {
+  'hasMore' : boolean,
+  'totalCount' : bigint,
+  'items' : Array<Enquiry>,
 }
 export interface ProductFilter {
   'minRating' : [] | [number],
@@ -394,13 +417,22 @@ export interface _SERVICE {
   'deactivateFlashSale' : ActorMethod<[FlashSaleId], boolean>,
   'deactivatePromoCode' : ActorMethod<[string], boolean>,
   'deleteAddress' : ActorMethod<[AddressId], boolean>,
+  'deleteEnquiry' : ActorMethod<[string], boolean>,
+  'deleteMyReview' : ActorMethod<
+    [ReviewId],
+    { 'ok' : boolean } |
+      { 'err' : AppError }
+  >,
   'deleteProduct' : ActorMethod<[ProductId], boolean>,
   'downloadInvoice' : ActorMethod<[OrderId], string>,
   'getAdminAnalytics' : ActorMethod<[], AdminAnalytics>,
+  'getAnalyticsEvents' : ActorMethod<[bigint, bigint], Array<AnalyticsEvent>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getCart' : ActorMethod<[], Array<CartItem>>,
+  'getEnquiryCount' : ActorMethod<[], bigint>,
   'getFlashSale' : ActorMethod<[FlashSaleId], [] | [FlashSaleView]>,
+  'getMyEnquiries' : ActorMethod<[string], Array<Enquiry>>,
   'getOrder' : ActorMethod<[OrderId], [] | [Order]>,
   'getOrderedQuantityReport' : ActorMethod<
     [[] | [bigint], [] | [bigint]],
@@ -410,18 +442,22 @@ export interface _SERVICE {
   'getRecentlyViewed' : ActorMethod<[], Array<ProductView>>,
   'getReview' : ActorMethod<[ReviewId], [] | [Review]>,
   'getStripeSessionStatus' : ActorMethod<[string], StripeSessionStatus>,
+  'getTopProducts' : ActorMethod<[bigint], Array<ProductView>>,
   'getUserProfile' : ActorMethod<[UserId], [] | [UserProfile]>,
   'getWishlist' : ActorMethod<[], Array<ProductId>>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'isStripeConfigured' : ActorMethod<[], boolean>,
   'listAddresses' : ActorMethod<[], Array<Address>>,
   'listAllEnquiries' : ActorMethod<[], Array<Enquiry>>,
+  'listAllEnquiriesPaged' : ActorMethod<[bigint, bigint], PagedResult_1>,
   'listAllOrders' : ActorMethod<[bigint, bigint], Array<Order>>,
   'listAllReturns' : ActorMethod<[], Array<Order>>,
   'listAllReviews' : ActorMethod<[], Array<AdminReviewView>>,
+  'listAllReviewsPaged' : ActorMethod<[bigint, bigint], PagedResult>,
   'listAnswers' : ActorMethod<[QuestionId], Array<Answer>>,
   'listFlashSales' : ActorMethod<[boolean], Array<FlashSaleView>>,
   'listMyOrders' : ActorMethod<[], Array<Order>>,
+  'listMyReviews' : ActorMethod<[], Array<Review>>,
   'listProducts' : ActorMethod<
     [[] | [ProductFilter], [] | [ProductSort], bigint, bigint],
     Array<ProductView>
@@ -446,6 +482,11 @@ export interface _SERVICE {
   'recordRecentlyViewed' : ActorMethod<[ProductId], undefined>,
   'removeFromCart' : ActorMethod<[ProductId], undefined>,
   'removeFromWishlist' : ActorMethod<[ProductId], undefined>,
+  'requestReturn' : ActorMethod<
+    [OrderId, string],
+    { 'ok' : OrderId } |
+      { 'err' : AppError }
+  >,
   'saveCallerUserProfile' : ActorMethod<
     [UserProfile],
     { 'ok' : null } |

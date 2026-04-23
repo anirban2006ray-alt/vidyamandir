@@ -4,10 +4,14 @@ import Set "mo:core/Set";
 import Time "mo:core/Time";
 import Runtime "mo:core/Runtime";
 import AccessControl "mo:caffeineai-authorization/access-control";
+import OutCall "mo:caffeineai-http-outcalls/outcall";
 import Common "../types/common";
 import OrderTypes "../types/order";
 import CatalogTypes "../types/catalog";
+import UserTypes "../types/user";
 import OrderLib "../lib/order";
+import UserLib "../lib/user";
+import Notifications "../lib/notifications";
 
 mixin (
   accessControlState : AccessControl.AccessControlState,
@@ -16,9 +20,13 @@ mixin (
   promoCodes : Map.Map<Text, OrderTypes.PromoCode>,
   products : Map.Map<Common.ProductId, CatalogTypes.Product>,
   purchasedProductsByUser : Map.Map<Common.UserId, Set.Set<Common.ProductId>>,
+  orderIdempotencyKeys : Map.Map<Text, Common.IdempotencyEntry>,
   nextOrderId : [var Nat],
   nextAddressId : [var Nat],
   nextPromoCodeId : [var Nat],
+  analyticsCache : [var ?UserTypes.AnalyticsCacheEntry],
+  analyticsEvents : List.List<UserTypes.AnalyticsEvent>,
+  transform : OutCall.Transform,
 ) {
   // ── Address book ─────────────────────────────────────────────────────────
 
@@ -54,8 +62,30 @@ mixin (
 
   public shared ({ caller }) func createOrder(input : OrderTypes.CreateOrderInput) : async { #ok : Common.OrderId; #err : Common.AppError } {
     if (caller.isAnonymous()) return #err(#unauthorized);
-    switch (OrderLib.createOrder(orders, addresses, promoCodes, products, purchasedProductsByUser, nextOrderId[0], caller, input)) {
-      case (#ok(id)) { nextOrderId[0] += 1; #ok(id) };
+    switch (OrderLib.createOrder(orders, addresses, promoCodes, products, purchasedProductsByUser, orderIdempotencyKeys, nextOrderId[0], caller, input)) {
+      case (#ok(id)) {
+        nextOrderId[0] += 1;
+        // Invalidate analytics cache — new order changes revenue/totals
+        analyticsCache[0] := null;
+        // Track 'book_purchased' events for each item
+        let now = Time.now();
+        for (item in input.items.values()) {
+          UserLib.recordEvent(analyticsEvents, {
+            eventType = "book_purchased";
+            userId = caller.toText();
+            productId = ?item.productId;
+            orderId = ?id;
+            amount = ?(item.quantity * item.priceInPaisa);
+            timestamp = now;
+          });
+        };
+        // Fire-and-forget: send order notification to store
+        switch (orders.get(id)) {
+          case (?order) { ignore Notifications.sendOrderNotification(order, transform) };
+          case null {};
+        };
+        #ok(id);
+      };
       case (#err(e)) { #err(e) };
     };
   };
@@ -80,6 +110,32 @@ mixin (
     };
   };
 
+  /// Request a return/refund for a delivered order.
+  /// Only the order owner can request a return, and only when the order status is 'delivered'.
+  /// Fires a fire-and-forget notification to the store owner.
+  public shared ({ caller }) func requestReturn(orderId : Common.OrderId, reason : Text) : async { #ok : Common.OrderId; #err : Common.AppError } {
+    if (caller.isAnonymous()) return #err(#unauthorized);
+    switch (OrderLib.requestReturn(orders, orderId, caller, reason)) {
+      case (#ok(id)) {
+        analyticsCache[0] := null;
+        UserLib.recordEvent(analyticsEvents, {
+          eventType = "return_requested";
+          userId = caller.toText();
+          productId = null;
+          orderId = ?id;
+          amount = null;
+          timestamp = Time.now();
+        });
+        switch (orders.get(id)) {
+          case (?order) { ignore Notifications.sendReturnNotification(order, reason, transform) };
+          case null {};
+        };
+        #ok(id);
+      };
+      case (#err(e)) { #err(e) };
+    };
+  };
+
   // ── Promo codes ───────────────────────────────────────────────────────────
 
   /// Query promo code validity (informational — no spend context).
@@ -89,18 +145,58 @@ mixin (
 
   // ── Admin operations ──────────────────────────────────────────────────────
 
+  /// List all orders paginated. limit capped at 100, default 20.
   public query ({ caller }) func listAllOrders(offset : Nat, limit : Nat) : async [OrderTypes.Order] {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Admins only");
     };
-    OrderLib.listAllOrders(orders, offset, limit);
+    let cappedLimit = if (limit == 0) 20 else if (limit > 100) 100 else limit;
+    OrderLib.listAllOrders(orders, offset, cappedLimit);
   };
 
   public shared ({ caller }) func updateOrderStatus(orderId : Common.OrderId, status : OrderTypes.OrderStatus, note : Text, estimatedDeliveryDate : ?Int, courierNote : ?Text) : async Bool {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Admins only");
     };
-    OrderLib.updateOrderStatus(orders, orderId, status, note, estimatedDeliveryDate, courierNote);
+    let result = OrderLib.updateOrderStatus(orders, orderId, status, note, estimatedDeliveryDate, courierNote);
+    if (result) {
+      // Invalidate analytics cache when order status changes
+      analyticsCache[0] := null;
+      // Track return-related analytics events and send notifications
+      let now = Time.now();
+      switch (status) {
+        case (#refundRequested) {
+          UserLib.recordEvent(analyticsEvents, {
+            eventType = "return_requested";
+            userId = "";
+            productId = null;
+            orderId = ?orderId;
+            amount = null;
+            timestamp = now;
+          });
+          switch (orders.get(orderId)) {
+            case (?order) { ignore Notifications.sendReturnNotification(order, note, transform) };
+            case null {};
+          };
+        };
+        case (#refunded) {
+          UserLib.recordEvent(analyticsEvents, {
+            eventType = "return_approved";
+            userId = "";
+            productId = null;
+            orderId = ?orderId;
+            amount = null;
+            timestamp = now;
+          });
+          switch (orders.get(orderId)) {
+            case (?order) { ignore Notifications.sendReturnNotification(order, note, transform) };
+            case null {};
+          };
+        };
+        case _ {};
+      };
+    };
+    result;
   };
 
   public shared ({ caller }) func createPromoCode(

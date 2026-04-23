@@ -8,19 +8,13 @@ export interface None {
 }
 export type Option<T> = Some<T> | None;
 export type FlashSaleId = bigint;
-export interface Address {
-    id: AddressId;
-    city: string;
-    userId: UserId;
+export interface Answer {
+    id: AnswerId;
     createdAt: Timestamp;
-    fullName: string;
-    line1: string;
-    line2: string;
-    district: string;
-    state: string;
-    isDefault: boolean;
-    phone: string;
-    pincode: string;
+    questionId: QuestionId;
+    helpfulVotes: bigint;
+    answerText: string;
+    answeredBy: UserId;
 }
 export type Timestamp = bigint;
 export interface TransformationOutput {
@@ -40,6 +34,25 @@ export interface PromoCode {
     minSpendInPaisa: bigint;
     validUntil: Timestamp;
 }
+export interface PagedResult {
+    hasMore: boolean;
+    totalCount: bigint;
+    items: Array<AdminReviewView>;
+}
+export interface Address {
+    id: AddressId;
+    city: string;
+    userId: UserId;
+    createdAt: Timestamp;
+    fullName: string;
+    line1: string;
+    line2: string;
+    district: string;
+    state: string;
+    isDefault: boolean;
+    phone: string;
+    pincode: string;
+}
 export interface OrderItem {
     priceInPaisa: bigint;
     productId: ProductId;
@@ -47,6 +60,15 @@ export interface OrderItem {
     titleEn: string;
 }
 export type AppError = {
+    __kind__: "rateLimitExceeded";
+    rateLimitExceeded: null;
+} | {
+    __kind__: "serverError";
+    serverError: string;
+} | {
+    __kind__: "validationError";
+    validationError: string;
+} | {
     __kind__: "expired";
     expired: null;
 } | {
@@ -58,6 +80,9 @@ export type AppError = {
 } | {
     __kind__: "invalidInput";
     invalidInput: string;
+} | {
+    __kind__: "duplicateEntry";
+    duplicateEntry: null;
 } | {
     __kind__: "minSpend";
     minSpend: bigint;
@@ -128,6 +153,7 @@ export interface TransformationInput {
     response: http_request_result;
 }
 export interface CreateOrderInput {
+    idempotencyKey?: string;
     shippingAddressId: AddressId;
     promoCode?: string;
     stripePaymentIntentId: string;
@@ -156,12 +182,6 @@ export interface CreateReviewInput {
     rating: bigint;
     titleEn: string;
 }
-export interface OrderedQuantityItem {
-    totalOrdered: bigint;
-    productTitle: string;
-    productId: ProductId;
-    totalRevenue: bigint;
-}
 export interface Review {
     id: ReviewId;
     userId: UserId;
@@ -172,6 +192,20 @@ export interface Review {
     rating: bigint;
     helpfulVotes: bigint;
     titleEn: string;
+}
+export interface OrderedQuantityItem {
+    totalOrdered: bigint;
+    productTitle: string;
+    productId: ProductId;
+    totalRevenue: bigint;
+}
+export interface AnalyticsEvent {
+    userId: string;
+    productId?: ProductId;
+    orderId?: OrderId;
+    timestamp: Timestamp;
+    amount?: bigint;
+    eventType: string;
 }
 export interface FlashSaleView {
     id: FlashSaleId;
@@ -293,6 +327,11 @@ export interface ProductSort {
     field: SortField;
     order: SortOrder;
 }
+export interface PagedResult_1 {
+    hasMore: boolean;
+    totalCount: bigint;
+    items: Array<Enquiry>;
+}
 export interface CreateFlashSaleInput {
     startTime: Timestamp;
     endTime: Timestamp;
@@ -300,7 +339,6 @@ export interface CreateFlashSaleInput {
     titleBn: string;
     titleEn: string;
 }
-export type AnswerId = bigint;
 export type ProductId = bigint;
 export interface Question {
     id: QuestionId;
@@ -315,14 +353,7 @@ export interface CartItem {
     addedAt: Timestamp;
     quantity: bigint;
 }
-export interface Answer {
-    id: AnswerId;
-    createdAt: Timestamp;
-    questionId: QuestionId;
-    helpfulVotes: bigint;
-    answerText: string;
-    answeredBy: UserId;
-}
+export type AnswerId = bigint;
 export interface UserProfile {
     preferredLanguage: Variant_bengali_english;
     name: string;
@@ -464,31 +495,46 @@ export interface backendInterface {
     deactivateFlashSale(id: FlashSaleId): Promise<boolean>;
     deactivatePromoCode(code: string): Promise<boolean>;
     deleteAddress(addressId: AddressId): Promise<boolean>;
+    deleteEnquiry(id: string): Promise<boolean>;
+    deleteMyReview(reviewId: ReviewId): Promise<{
+        __kind__: "ok";
+        ok: boolean;
+    } | {
+        __kind__: "err";
+        err: AppError;
+    }>;
     deleteProduct(id: ProductId): Promise<boolean>;
     downloadInvoice(orderId: OrderId): Promise<string>;
     getAdminAnalytics(): Promise<AdminAnalytics>;
+    getAnalyticsEvents(offset: bigint, limit: bigint): Promise<Array<AnalyticsEvent>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCart(): Promise<Array<CartItem>>;
+    getEnquiryCount(): Promise<bigint>;
     getFlashSale(id: FlashSaleId): Promise<FlashSaleView | null>;
+    getMyEnquiries(email: string): Promise<Array<Enquiry>>;
     getOrder(orderId: OrderId): Promise<Order | null>;
     getOrderedQuantityReport(fromDate: bigint | null, toDate: bigint | null): Promise<Array<OrderedQuantityItem>>;
     getProduct(id: ProductId): Promise<ProductView | null>;
     getRecentlyViewed(): Promise<Array<ProductView>>;
     getReview(id: ReviewId): Promise<Review | null>;
     getStripeSessionStatus(sessionId: string): Promise<StripeSessionStatus>;
+    getTopProducts(limit: bigint): Promise<Array<ProductView>>;
     getUserProfile(user: UserId): Promise<UserProfile | null>;
     getWishlist(): Promise<Array<ProductId>>;
     isCallerAdmin(): Promise<boolean>;
     isStripeConfigured(): Promise<boolean>;
     listAddresses(): Promise<Array<Address>>;
     listAllEnquiries(): Promise<Array<Enquiry>>;
+    listAllEnquiriesPaged(offset: bigint, limit: bigint): Promise<PagedResult_1>;
     listAllOrders(offset: bigint, limit: bigint): Promise<Array<Order>>;
     listAllReturns(): Promise<Array<Order>>;
     listAllReviews(): Promise<Array<AdminReviewView>>;
+    listAllReviewsPaged(offset: bigint, limit: bigint): Promise<PagedResult>;
     listAnswers(questionId: QuestionId): Promise<Array<Answer>>;
     listFlashSales(activeOnly: boolean): Promise<Array<FlashSaleView>>;
     listMyOrders(): Promise<Array<Order>>;
+    listMyReviews(): Promise<Array<Review>>;
     listProducts(filterOpt: ProductFilter | null, sortOpt: ProductSort | null, offset: bigint, limit: bigint): Promise<Array<ProductView>>;
     listPromoCodes(): Promise<Array<PromoCode>>;
     listQuestions(productId: ProductId): Promise<Array<Question>>;
@@ -504,6 +550,13 @@ export interface backendInterface {
     recordRecentlyViewed(productId: ProductId): Promise<void>;
     removeFromCart(productId: ProductId): Promise<void>;
     removeFromWishlist(productId: ProductId): Promise<void>;
+    requestReturn(orderId: OrderId, reason: string): Promise<{
+        __kind__: "ok";
+        ok: OrderId;
+    } | {
+        __kind__: "err";
+        err: AppError;
+    }>;
     saveCallerUserProfile(profile: UserProfile): Promise<{
         __kind__: "ok";
         ok: null;

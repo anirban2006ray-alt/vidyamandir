@@ -1,4 +1,5 @@
 import Map "mo:core/Map";
+import List "mo:core/List";
 import Time "mo:core/Time";
 import Runtime "mo:core/Runtime";
 import AccessControl "mo:caffeineai-authorization/access-control";
@@ -7,12 +8,15 @@ import UserTypes "../types/user";
 import OrderTypes "../types/order";
 import CatalogTypes "../types/catalog";
 import UserLib "../lib/user";
+import CatalogLib "../lib/catalog";
 
 mixin (
   accessControlState : AccessControl.AccessControlState,
   profiles : Map.Map<Common.UserId, UserTypes.UserProfile>,
   orders : Map.Map<Common.OrderId, OrderTypes.Order>,
   products : Map.Map<Common.ProductId, CatalogTypes.Product>,
+  analyticsCache : [var ?UserTypes.AnalyticsCacheEntry],
+  analyticsEvents : List.List<UserTypes.AnalyticsEvent>,
 ) {
   public query ({ caller }) func getCallerUserProfile() : async ?UserTypes.UserProfile {
     UserLib.getProfile(profiles, caller);
@@ -44,11 +48,50 @@ mixin (
     UserLib.getProfile(profiles, user);
   };
 
-  // Admin analytics
-  public query ({ caller }) func getAdminAnalytics() : async UserTypes.AdminAnalytics {
+  // ── Admin analytics with 5-minute cache ──────────────────────────────────
+  // Note: shared (update) call required to write the cache — query functions cannot mutate state.
+  public shared ({ caller }) func getAdminAnalytics() : async UserTypes.AdminAnalytics {
     if (not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: only admins can access analytics");
     };
-    UserLib.getAdminAnalytics(orders, products, profiles, Time.now());
+    let now = Time.now();
+    switch (analyticsCache[0]) {
+      case (?entry) {
+        if (UserLib.isCacheFresh(entry, now)) {
+          return entry.data;
+        };
+      };
+      case null {};
+    };
+    // Cache is stale or absent — recompute and store
+    let fresh = UserLib.getAdminAnalytics(orders, products, profiles, now);
+    analyticsCache[0] := ?{ data = fresh; cachedAt = now };
+    fresh;
+  };
+
+  // ── Analytics events (admin) ──────────────────────────────────────────────
+
+  /// Return recent analytics events, paginated. limit capped at 500.
+  public query ({ caller }) func getAnalyticsEvents(offset : Nat, limit : Nat) : async [UserTypes.AnalyticsEvent] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: only admins can access analytics events");
+    };
+    UserLib.getAnalyticsEvents(analyticsEvents, offset, limit);
+  };
+
+  // ── Top products (from cache) ─────────────────────────────────────────────
+
+  /// Return top bestselling products by order quantity.
+  /// Uses cached bestsellers list — O(limit) instead of O(N orders).
+  public query ({ caller }) func getTopProducts(limit : Nat) : async [CatalogTypes.ProductView] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: only admins can access top products");
+    };
+    let bestsellers : [(Common.ProductId, Nat)] = switch (analyticsCache[0]) {
+      case (?entry) entry.data.bestsellers;
+      case null [];
+    };
+    let rawProducts = UserLib.getTopProducts(bestsellers, products, limit);
+    rawProducts.map<CatalogTypes.Product, CatalogTypes.ProductView>(CatalogLib.toView);
   };
 };

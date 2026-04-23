@@ -72,6 +72,7 @@ module {
     shippingAddressId : Common.AddressId;
     promoCode : ?Text;
     stripePaymentIntentId : Text;
+    idempotencyKey : ?Text; // optional client-supplied key for deduplication (24h window)
   };
 
   public type PromoCode = {

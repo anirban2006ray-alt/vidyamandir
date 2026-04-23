@@ -17,6 +17,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useLanguage } from "../hooks/use-language";
 import { useSubmitEnquiry } from "../hooks/useQueries";
+import { getErrorMessage } from "../lib/utils";
 
 interface EnquiryForm {
   name: string;
@@ -69,7 +70,7 @@ export function Footer() {
           setSubmitted(true);
           setForm(EMPTY);
         } else {
-          toast.error("Could not send enquiry. Please try again.");
+          toast.error(getErrorMessage(result.err));
         }
       },
       onError: () => toast.error("Failed to send enquiry."),

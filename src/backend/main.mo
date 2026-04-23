@@ -6,7 +6,7 @@ import Stripe "mo:caffeineai-stripe/stripe";
 import OutCall "mo:caffeineai-http-outcalls/outcall";
 import AccessControl "mo:caffeineai-authorization/access-control";
 import MixinAuthorization "mo:caffeineai-authorization/MixinAuthorization";
-import Migration "migration";
+
 import Common "types/common";
 import CatalogTypes "types/catalog";
 import FlashSaleTypes "types/flashsale";
@@ -26,11 +26,16 @@ import EnquiryMixin "mixins/enquiry-api";
 
 
 
-(with migration = Migration.run)
+
 actor {
   // --- Authorization ---
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
+
+  // --- HTTP transform (required before any mixin that uses outcalls) ---
+  public query func transform(input : OutCall.TransformationInput) : async OutCall.TransformationOutput {
+    OutCall.transform(input);
+  };
 
   // --- Catalog state ---
   let products = Map.empty<Common.ProductId, CatalogTypes.Product>();
@@ -56,7 +61,12 @@ actor {
   let nextReviewId : [var Nat] = [var 1];
   let nextQuestionId : [var Nat] = [var 1];
   let nextAnswerId : [var Nat] = [var 1];
-  include ReviewMixin(accessControlState, reviews, questions, answers, purchasedProductsByUser, nextReviewId, nextQuestionId, nextAnswerId);
+  // Analytics: 5-minute cached snapshot + event ring-buffer (up to 10,000 events)
+  let analyticsCache : [var ?UserTypes.AnalyticsCacheEntry] = [var null];
+  let analyticsEvents = List.empty<UserTypes.AnalyticsEvent>();
+  // Shared rate-limit map (keyed by "action:principalText")
+  let rateLimitMap = Map.empty<Text, Common.RateLimitEntry>();
+  include ReviewMixin(accessControlState, reviews, questions, answers, purchasedProductsByUser, products, nextReviewId, nextQuestionId, nextAnswerId, analyticsCache, analyticsEvents, transform, rateLimitMap);
 
   // --- Orders & Addresses state (products injected for inventory validation) ---
   let orders = Map.empty<Common.OrderId, OrderTypes.Order>();
@@ -65,16 +75,18 @@ actor {
   let nextOrderId : [var Nat] = [var 1];
   let nextAddressId : [var Nat] = [var 1];
   let nextPromoCodeId : [var Nat] = [var 1];
-  include OrderMixin(accessControlState, orders, addresses, promoCodes, products, purchasedProductsByUser, nextOrderId, nextAddressId, nextPromoCodeId);
+  // Idempotency keys for order deduplication (24h expiry)
+  let orderIdempotencyKeys = Map.empty<Text, Common.IdempotencyEntry>();
+  include OrderMixin(accessControlState, orders, addresses, promoCodes, products, purchasedProductsByUser, orderIdempotencyKeys, nextOrderId, nextAddressId, nextPromoCodeId, analyticsCache, analyticsEvents, transform);
 
   // --- User profiles state ---
   let profiles = Map.empty<Common.UserId, UserTypes.UserProfile>();
-  include UserMixin(accessControlState, profiles, orders, products);
+  include UserMixin(accessControlState, profiles, orders, products, analyticsCache, analyticsEvents);
 
   // --- Enquiry state ---
   let enquiries = Map.empty<Text, EnquiryTypes.Enquiry>();
   let nextEnquiryId : [var Nat] = [var 1];
-  include EnquiryMixin(accessControlState, enquiries, nextEnquiryId);
+  include EnquiryMixin(accessControlState, enquiries, nextEnquiryId, transform, rateLimitMap);
 
   // --- Seed catalog if empty ---
   if (products.isEmpty()) {
@@ -500,9 +512,5 @@ actor {
       case (?c) { c };
     };
     await Stripe.createCheckoutSession(config, caller, items, successUrl, cancelUrl, transform);
-  };
-
-  public query func transform(input : OutCall.TransformationInput) : async OutCall.TransformationOutput {
-    OutCall.transform(input);
   };
 };

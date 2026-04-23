@@ -48,6 +48,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { EnquiryStatus, OrderStatus } from "../backend";
 import type {
+  AdminReviewView,
   CreateFlashSaleInput,
   CreateProductInput,
   Enquiry,
@@ -57,7 +58,6 @@ import type {
   Order,
   ProductView,
   PromoCode,
-  Review,
 } from "../backend.d.ts";
 
 import { LoadingSpinner } from "../components/LoadingSpinner";
@@ -74,6 +74,7 @@ import {
   useDeleteProduct,
   useDeleteReview,
   useGetAdminAnalytics,
+  useGetAnalyticsEvents,
   useGetOrderedQuantityReport,
   useListAllEnquiries,
   useListAllOrders,
@@ -426,6 +427,114 @@ function StarRating({ rating }: { rating: bigint }) {
   );
 }
 
+// ─── Analytics Events Section ─────────────────────────────────────────────────
+
+function AnalyticsEventsSection() {
+  const { data: events, isLoading } = useGetAnalyticsEvents(
+    BigInt(0),
+    BigInt(50),
+  );
+
+  const formatTs = (ts: bigint) =>
+    new Date(Number(ts) / 1_000_000).toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+  return (
+    <div className="mt-6" data-ocid="admin.analytics_events_section">
+      <SectionHeader icon={TrendingUp} title="Recent Analytics Events" />
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-10 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : events?.length ? (
+        <div
+          className="card-elevation overflow-x-auto"
+          data-ocid="admin.analytics_events_table"
+        >
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                {[
+                  { label: "Timestamp", align: "left" },
+                  { label: "Event Type", align: "left" },
+                  {
+                    label: "Product",
+                    align: "right",
+                    hidden: "hidden sm:table-cell",
+                  },
+                  {
+                    label: "Order",
+                    align: "right",
+                    hidden: "hidden sm:table-cell",
+                  },
+                  { label: "Amount", align: "right" },
+                ].map(({ label, align, hidden }) => (
+                  <th
+                    key={label}
+                    className={`p-3 text-xs text-muted-foreground font-bold uppercase tracking-widest text-${align} ${hidden ?? ""}`}
+                  >
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((ev, idx) => (
+                <tr
+                  key={`${ev.timestamp.toString()}-${idx}`}
+                  className="border-b border-border hover:bg-muted/15 transition-smooth"
+                  data-ocid={`admin.analytics_event.${idx + 1}`}
+                >
+                  <td className="p-3 text-xs text-muted-foreground">
+                    {formatTs(ev.timestamp)}
+                  </td>
+                  <td className="p-3">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-accent/10 text-accent border border-accent/20">
+                      {ev.eventType}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right font-mono text-xs hidden sm:table-cell text-muted-foreground">
+                    {ev.productId !== undefined && ev.productId !== null
+                      ? `#${ev.productId.toString()}`
+                      : "—"}
+                  </td>
+                  <td className="p-3 text-right font-mono text-xs hidden sm:table-cell text-muted-foreground">
+                    {ev.orderId !== undefined && ev.orderId !== null
+                      ? `#${ev.orderId.toString()}`
+                      : "—"}
+                  </td>
+                  <td className="p-3 text-right font-mono text-xs font-semibold">
+                    {ev.amount !== undefined && ev.amount !== null
+                      ? formatPrice(ev.amount)
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div
+          className="card-elevation flex flex-col items-center py-12 gap-3"
+          data-ocid="admin.analytics_events.empty_state"
+        >
+          <BarChart2 size={28} className="text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground">
+            No analytics events yet
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Analytics Tab ────────────────────────────────────────────────────────────
 
 function AnalyticsTab({
@@ -660,6 +769,9 @@ function AnalyticsTab({
           </div>
         )}
       </div>
+
+      {/* Analytics Events */}
+      <AnalyticsEventsSection />
     </div>
   );
 }
@@ -1323,7 +1435,8 @@ function ReviewsModerationTab() {
   const filtered =
     reviews?.filter((r) => {
       if (filter === "all") return true;
-      if (filter === "approved") return r.helpfulVotes >= BigInt(0);
+      if (filter === "approved") return r.isApproved === true;
+      if (filter === "pending") return r.isApproved === false;
       return true;
     }) ?? [];
 

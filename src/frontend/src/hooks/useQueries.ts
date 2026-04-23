@@ -5,6 +5,8 @@ import type {
   Address,
   AddressInput,
   AdminAnalytics,
+  AdminReviewView,
+  AnalyticsEvent,
   Answer,
   CartItem,
   CreateFlashSaleInput,
@@ -373,7 +375,9 @@ export function usePlaceOrder() {
   return useMutation({
     mutationFn: async (input: CreateOrderInput) => {
       if (!actor) throw new Error("Actor not available");
-      return actor.createOrder(input);
+      // Generate a UUID v4 idempotency key to prevent duplicate order creation
+      const idempotencyKey = crypto.randomUUID();
+      return actor.createOrder({ ...input, idempotencyKey });
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["myOrders"] });
@@ -800,13 +804,13 @@ export function useDeactivatePromoCode() {
 export function useListAllReviews() {
   const { actor, isFetching } = useActor(createActor);
   const { isAuthenticated } = useInternetIdentity();
-  return useQuery<Review[]>({
+  return useQuery<AdminReviewView[]>({
     queryKey: ["allReviews"],
     queryFn: async () => {
       if (!actor) return [];
       const a = actor as unknown as Record<string, unknown>;
       if (typeof a.listAllReviews === "function") {
-        return (a.listAllReviews as () => Promise<Review[]>)();
+        return (a.listAllReviews as () => Promise<AdminReviewView[]>)();
       }
       return [];
     },
@@ -943,6 +947,21 @@ export function useGetOrderedQuantityReport(
       return Array.from(map.values()).sort((a, b) =>
         a.totalUnits > b.totalUnits ? -1 : 1,
       );
+    },
+    enabled: !!actor && !isFetching && isAuthenticated,
+  });
+}
+
+// ─── Admin — Analytics Events ────────────────────────────────────────────────
+
+export function useGetAnalyticsEvents(offset = BigInt(0), limit = BigInt(50)) {
+  const { actor, isFetching } = useActor(createActor);
+  const { isAuthenticated } = useInternetIdentity();
+  return useQuery<AnalyticsEvent[]>({
+    queryKey: ["analyticsEvents", offset.toString(), limit.toString()],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAnalyticsEvents(offset, limit);
     },
     enabled: !!actor && !isFetching && isAuthenticated,
   });

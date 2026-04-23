@@ -27,7 +27,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { Answer, Question, Review } from "../backend.d.ts";
+import type { Answer, AppError, Question, Review } from "../backend.d.ts";
 import { StarRating } from "../components/StarRating";
 import { useAuth } from "../hooks/use-auth";
 import { useCart } from "../hooks/use-cart";
@@ -48,6 +48,7 @@ import {
   useVoteReviewHelpful,
 } from "../hooks/useQueries";
 import { formatPrice } from "../lib/i18n";
+import { getErrorMessage } from "../lib/utils";
 
 type SortMode = "helpfulness" | "recency" | "rating";
 type TabMode = "reviews" | "qanda" | "details";
@@ -408,15 +409,24 @@ function WriteReviewForm({
         bodyEn: bodyEn.trim(),
       },
       {
-        onSuccess: () => {
-          toast.success("Review submitted successfully!");
-          setRating(0);
-          setTitleEn("");
-          setBodyEn("");
-          onSuccess();
+        onSuccess: (result) => {
+          if (result.__kind__ === "ok") {
+            toast.success("Review submitted successfully!");
+            setRating(0);
+            setTitleEn("");
+            setBodyEn("");
+            onSuccess();
+          } else {
+            toast.error(getErrorMessage(result.err));
+          }
         },
-        onError: () =>
-          toast.error("Failed to submit review. Please try again."),
+        onError: (err) => {
+          const msg =
+            err && typeof err === "object" && "__kind__" in err
+              ? getErrorMessage(err as unknown as AppError)
+              : "Failed to submit review. Please try again.";
+          toast.error(msg);
+        },
       },
     );
   };

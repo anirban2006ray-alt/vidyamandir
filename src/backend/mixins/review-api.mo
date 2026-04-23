@@ -1,10 +1,17 @@
 import Map "mo:core/Map";
 import Set "mo:core/Set";
+import List "mo:core/List";
+import Time "mo:core/Time";
 import Runtime "mo:core/Runtime";
 import AccessControl "mo:caffeineai-authorization/access-control";
+import OutCall "mo:caffeineai-http-outcalls/outcall";
 import Common "../types/common";
 import ReviewTypes "../types/review";
+import CatalogTypes "../types/catalog";
+import UserTypes "../types/user";
 import ReviewLib "../lib/review";
+import UserLib "../lib/user";
+import Notifications "../lib/notifications";
 
 mixin (
   accessControlState : AccessControl.AccessControlState,
@@ -12,10 +19,39 @@ mixin (
   questions : Map.Map<Common.QuestionId, ReviewTypes.Question>,
   answers : Map.Map<Common.AnswerId, ReviewTypes.AnswerInternal>,
   purchasedProductsByUser : Map.Map<Common.UserId, Set.Set<Common.ProductId>>,
+  products : Map.Map<Common.ProductId, CatalogTypes.Product>,
   nextReviewId : [var Nat],
   nextQuestionId : [var Nat],
   nextAnswerId : [var Nat],
+  analyticsCache : [var ?UserTypes.AnalyticsCacheEntry],
+  analyticsEvents : List.List<UserTypes.AnalyticsEvent>,
+  transform : OutCall.Transform,
+  rateLimitMap : Map.Map<Text, Common.RateLimitEntry>,
 ) {
+  // ── Rate limit helper ─────────────────────────────────────────────────────
+
+  func checkRateLimit(key : Text, maxCount : Nat, windowSecs : Int) : Bool {
+    let now = Time.now();
+    let windowNs : Int = windowSecs * 1_000_000_000;
+    switch (rateLimitMap.get(key)) {
+      case null {
+        rateLimitMap.add(key, { count = 1; windowStart = now });
+        true;
+      };
+      case (?entry) {
+        if (now - entry.windowStart > windowNs) {
+          rateLimitMap.add(key, { count = 1; windowStart = now });
+          true;
+        } else if (entry.count < maxCount) {
+          rateLimitMap.add(key, { entry with count = entry.count + 1 });
+          true;
+        } else {
+          false;
+        };
+      };
+    };
+  };
+
   /// List all reviews for a product (default: by recency).
   public query func listReviews(productId : Common.ProductId) : async [ReviewTypes.Review] {
     ReviewLib.listReviewsSorted(reviews, productId, #recency);
@@ -34,13 +70,53 @@ mixin (
     ReviewLib.getReview(reviews, id);
   };
 
+  /// List all reviews submitted by the caller (user self-service).
+  public query ({ caller }) func listMyReviews() : async [ReviewTypes.Review] {
+    if (caller.isAnonymous()) Runtime.trap("Not authenticated");
+    ReviewLib.listReviewsByUser(reviews, caller);
+  };
+
+  /// Delete the caller's own review. Returns #ok(true) if deleted.
+  public shared ({ caller }) func deleteMyReview(reviewId : Common.ReviewId) : async { #ok : Bool; #err : Common.AppError } {
+    if (caller.isAnonymous()) return #err(#unauthorized);
+    ReviewLib.deleteOwnReview(reviews, reviewId, caller);
+  };
+
   /// Submit a review for a product.
   /// Returns #ok(ReviewId) or a structured AppError.
+  /// Rate limited: max 10 per caller per day.
   public shared ({ caller }) func createReview(input : ReviewTypes.CreateReviewInput) : async { #ok : Common.ReviewId; #err : Common.AppError } {
     if (caller.isAnonymous()) return #err(#unauthorized);
     AccessControl.initialize(accessControlState, caller);
+    let rlKey = "review:" # caller.toText();
+    if (not checkRateLimit(rlKey, 10, 86400)) {
+      return #err(#rateLimitExceeded);
+    };
     switch (ReviewLib.createReview(reviews, purchasedProductsByUser, nextReviewId[0], caller, input)) {
-      case (#ok(id)) { nextReviewId[0] += 1; #ok(id) };
+      case (#ok(id)) {
+        nextReviewId[0] += 1;
+        // Track 'review_submitted' analytics event
+        UserLib.recordEvent(analyticsEvents, {
+          eventType = "review_submitted";
+          userId = caller.toText();
+          productId = ?input.productId;
+          orderId = null;
+          amount = null;
+          timestamp = Time.now();
+        });
+        // Fire-and-forget: notify store of new review
+        switch (reviews.get(id)) {
+          case (?review) {
+            let productTitle = switch (products.get(review.productId)) {
+              case (?p) { p.info.titleEn };
+              case null { "Unknown Book" };
+            };
+            ignore Notifications.sendReviewNotification(review, productTitle, transform);
+          };
+          case null {};
+        };
+        #ok(id);
+      };
       case (#err(e)) { #err(e) };
     };
   };
@@ -101,6 +177,25 @@ mixin (
       Runtime.trap("Unauthorized: Admins only");
     };
     ReviewLib.listAllReviews(reviews);
+  };
+
+  /// Paginated admin reviews list. limit capped at 100.
+  public query ({ caller }) func listAllReviewsPaged(offset : Nat, limit : Nat) : async UserTypes.PagedResult<ReviewTypes.AdminReviewView> {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Admins only");
+    };
+    let cappedLimit = if (limit == 0) 20 else if (limit > 100) 100 else limit;
+    let all = ReviewLib.listAllReviews(reviews);
+    let total = all.size();
+    if (offset >= total) {
+      return { items = []; totalCount = total; hasMore = false };
+    };
+    let end = if (offset + cappedLimit > total) total else offset + cappedLimit;
+    {
+      items = all.sliceToArray(offset, end);
+      totalCount = total;
+      hasMore = end < total;
+    };
   };
 
   /// Delete any review by ID (admin only).

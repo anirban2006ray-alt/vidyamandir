@@ -32,7 +32,7 @@ import {
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { OrderStatus } from "../backend.d.ts";
+import type { AppError, OrderStatus } from "../backend.d.ts";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { useAuth } from "../hooks/use-auth";
 import { useLanguage } from "../hooks/use-language";
@@ -43,6 +43,7 @@ import {
   useUpdateOrderStatus,
 } from "../hooks/useQueries";
 import { formatPrice } from "../lib/i18n";
+import { getErrorMessage } from "../lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -541,14 +542,26 @@ export default function OrderDetailPage() {
         courierNote: null,
       },
       {
-        onSuccess: () =>
-          toast.success(
-            lang === "bn" ? "ফেরতের অনুরোধ সম্পন্ন" : "Refund request submitted",
-          ),
-        onError: () =>
-          toast.error(
-            lang === "bn" ? "ফেরতের অনুরোধ ব্যর্থ" : "Failed to request refund",
-          ),
+        onSuccess: (ok) => {
+          if (ok) {
+            toast.success(
+              lang === "bn" ? "ফেরতের অনুরোধ সম্পন্ন" : "Refund request submitted",
+            );
+          } else {
+            toast.error(
+              lang === "bn" ? "ফেরতের অনুরোধ ব্যর্থ" : "Failed to request refund",
+            );
+          }
+        },
+        onError: (err) => {
+          const msg =
+            err && typeof err === "object" && "__kind__" in err
+              ? getErrorMessage(err as unknown as AppError)
+              : lang === "bn"
+                ? "ফেরতের অনুরোধ ব্যর্থ"
+                : "Failed to request refund";
+          toast.error(msg);
+        },
       },
     );
   };
