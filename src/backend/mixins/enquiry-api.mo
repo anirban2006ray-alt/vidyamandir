@@ -1,5 +1,7 @@
 import Map "mo:core/Map";
 import Time "mo:core/Time";
+import Text "mo:core/Text";
+import Char "mo:core/Char";
 import Runtime "mo:core/Runtime";
 import AccessControl "mo:caffeineai-authorization/access-control";
 import OutCall "mo:caffeineai-http-outcalls/outcall";
@@ -62,6 +64,230 @@ mixin (
       };
       case (#err(e)) { #err(e) };
     };
+  };
+
+  // ── Chat AI enquiry ───────────────────────────────────────────────────────
+
+  /// Validate email: same rules as lib/enquiry.mo (local copy to avoid re-import).
+  func isValidChatEmail(email : Text) : Bool {
+    let s = email.size();
+    if (s <= 5) return false;
+    var hasSpace = false;
+    for (c in email.toIter()) { if (c == ' ') { hasSpace := true } };
+    if (hasSpace) return false;
+    var atCount = 0;
+    var atPos = 0;
+    var i = 0;
+    for (c in email.toIter()) {
+      if (c == '@') { atCount += 1; atPos := i };
+      i += 1;
+    };
+    if (atCount != 1) return false;
+    if (atPos == 0) return false;
+    let domain = Text.fromArray(email.toArray().sliceToArray(atPos + 1, s));
+    var dotPos = -1;
+    var j = 0;
+    for (c in domain.toIter()) {
+      if (c == '.') { dotPos := j };
+      j += 1;
+    };
+    if (dotPos < 0) return false;
+    if (dotPos == 0) return false;
+    let afterDot = domain.size() - dotPos - 1;
+    afterDot >= 2;
+  };
+
+  /// Validate Indian phone (10 pure digits required for user SMS).
+  func isValidChatPhone(phone : Text) : Bool {
+    var digits = "";
+    for (c in phone.toIter()) {
+      if (c.isDigit()) { digits #= c.toText() };
+    };
+    let len = digits.size();
+    if (len == 10) return true;
+    if (len == 12) {
+      return Text.fromArray(digits.toArray().sliceToArray(0, 2)) == "91";
+    };
+    if (len == 11) { return digits.toArray()[0] == '0' };
+    false;
+  };
+
+  /// Trim leading/trailing whitespace.
+  func trimChat(t : Text) : Text {
+    let chars = t.toArray();
+    var start = 0;
+    var end = chars.size();
+    while (start < end and chars[start].isWhitespace()) { start += 1 };
+    while (end > start and chars[end - 1].isWhitespace()) { end -= 1 };
+    Text.fromArray(chars.sliceToArray(start, end));
+  };
+
+  /// Escape a text value for inclusion in a JSON string.
+  func escapeJsonChat(t : Text) : Text {
+    var out = "";
+    for (c in t.chars()) {
+      let code = c.toNat32();
+      if (code == 34) { out #= "\\\"" }
+      else if (code == 92) { out #= "\\\\" }
+      else if (code == 10) { out #= "\\n" }
+      else if (code == 13) { out #= "\\r" }
+      else if (code == 9) { out #= "\\t" }
+      else { out #= c.toText() };
+    };
+    out;
+  };
+
+  /// Parse the AI reply text from an OpenAI chat completion JSON response.
+  /// Looks for: "content":"<reply>" in choices[0].message.content
+  func parseOpenAiReply(json : Text) : Text {
+    // Find the last occurrence of "content":" and extract until the closing "
+    // Simple parser: find substring pattern
+    let marker = "\"content\":\"";
+    let chars = json.toArray();
+    let markerChars = marker.toArray();
+    let jsonLen = chars.size();
+    let markerLen = markerChars.size();
+    // Search from end to find the last "content":" (choices[0].message.content is last)
+    var pos = jsonLen;
+    var found = false;
+    var contentStart = 0;
+    label search while (pos >= markerLen) {
+      pos -= 1;
+      var match = true;
+      var k = 0;
+      while (k < markerLen) {
+        if (chars[pos + k] != markerChars[k]) { match := false };
+        k += 1;
+      };
+      if (match) {
+        contentStart := pos + markerLen;
+        found := true;
+        break search;
+      };
+    };
+    if (not found) return "Thank you for your question! Please visit Vidyamandir at Balgona, GT Road, Purba Bardhaman or call 9475727810 for assistance.";
+    // Extract until unescaped closing quote
+    var reply = "";
+    var idx = contentStart;
+    var escaped = false;
+    label extract while (idx < jsonLen) {
+      let c = chars[idx];
+      if (escaped) {
+        if (c == 'n') { reply #= "\n" }
+        else if (c == 't') { reply #= "\t" }
+        else if (c == 'r') { reply #= "\r" }
+        else { reply #= c.toText() };
+        escaped := false;
+      } else if (c == '\\') {
+        escaped := true;
+      } else if (c.toNat32() == 34) {
+        break extract;
+      } else {
+        reply #= c.toText();
+      };
+      idx += 1;
+    };
+    if (reply.size() == 0) {
+      "Thank you for your question! Please visit Vidyamandir at Balgona, GT Road, Purba Bardhaman or call 9475727810 for assistance."
+    } else {
+      reply
+    };
+  };
+
+  /// Submit a chat enquiry: calls OpenAI, stores enquiry, fires notifications.
+  /// Rate limited: max 10 chat messages per caller per hour.
+  public shared ({ caller }) func submitChatEnquiry(
+    name : Text,
+    email : Text,
+    phone : Text,
+    question : Text,
+  ) : async { #ok : { enquiryId : Text; aiReply : Text }; #err : Common.AppError } {
+    let rlKey = "chat:" # caller.toText();
+    if (not checkEnquiryRateLimit(rlKey, 10, 3600)) {
+      return #err(#rateLimitExceeded);
+    };
+
+    // Validate inputs
+    let trimName = trimChat(name);
+    let trimEmail = trimChat(email);
+    let trimPhone = trimChat(phone);
+    let trimQuestion = trimChat(question);
+
+    if (trimName.size() == 0) {
+      return #err(#validationError("Name cannot be empty"));
+    };
+    if (not isValidChatEmail(trimEmail)) {
+      return #err(#validationError("Invalid email address format"));
+    };
+    if (trimPhone.size() > 0 and not isValidChatPhone(trimPhone)) {
+      return #err(#validationError("Phone must be a valid 10-digit Indian number"));
+    };
+    if (trimQuestion.size() < 5) {
+      return #err(#validationError("Question must be at least 5 characters"));
+    };
+    if (trimQuestion.size() > 2000) {
+      return #err(#validationError("Question must be at most 2000 characters"));
+    };
+
+    // Call OpenAI chat completions API
+    let systemPrompt =
+      "You are the AI assistant for Vidyamandir, a Bengali bookshop located at Balgona, GT Road, " #
+      "Purba Bardhaman, West Bengal, India (PIN 713125). Phone: 9475727810. " #
+      "Email: anirbanray030000@gmail.com. " #
+      "You help customers with questions about books, prices, orders, shipping, returns, and the shop. " #
+      "Respond in the language the customer uses (English or Bengali). " #
+      "Be friendly, helpful, and concise. If you don't know specific pricing, " #
+      "suggest the customer visit the website or contact the store directly.";
+
+    let openAiPayload =
+      "{\"model\":\"gpt-3.5-turbo\",\"messages\":[" #
+      "{\"role\":\"system\",\"content\":\"" # escapeJsonChat(systemPrompt) # "\"}," #
+      "{\"role\":\"user\",\"content\":\"" # escapeJsonChat(trimQuestion) # "\"}" #
+      "],\"max_tokens\":400,\"temperature\":0.7}";
+
+    let openAiHeaders : [OutCall.Header] = [
+      { name = "Content-Type"; value = "application/json" },
+      { name = "Authorization"; value = "Bearer " # Notifications.OPENAI_API_KEY },
+    ];
+
+    let aiReply : Text = try {
+      let responseText = await OutCall.httpPostRequest(
+        "https://api.openai.com/v1/chat/completions",
+        openAiHeaders,
+        openAiPayload,
+        transform,
+      );
+      parseOpenAiReply(responseText);
+    } catch (_) {
+      "Thank you for contacting Vidyamandir! Please visit our store at Balgona, GT Road, Purba Bardhaman or call 9475727810 for assistance.";
+    };
+
+    // Store as chat enquiry
+    let enquiryId = "ENQ-" # nextEnquiryId[0].toText();
+    let enquiry : EnquiryTypes.Enquiry = {
+      id = enquiryId;
+      name = trimName;
+      email = trimEmail;
+      phone = trimPhone;
+      message = "CHAT: " # trimQuestion;
+      submittedAt = Time.now();
+      status = #new_;
+      enquiryType = "chat";
+      aiReply;
+    };
+    enquiries.add(enquiryId, enquiry);
+    nextEnquiryId[0] += 1;
+
+    // Fire-and-forget: email AI reply to user
+    ignore Notifications.sendChatReplyToUser(trimName, trimEmail, trimQuestion, aiReply, transform);
+    // Fire-and-forget: SMS to user's phone
+    if (trimPhone.size() > 0) {
+      ignore Notifications.sendChatSmsToUser(trimPhone, aiReply, transform);
+    };
+    // Fire-and-forget: notify store owner about the chat enquiry
+    ignore Notifications.sendChatEnquiryToStore(enquiryId, trimName, trimEmail, trimPhone, trimQuestion, aiReply, transform);
+
+    #ok({ enquiryId; aiReply });
   };
 
   /// Retrieve enquiries submitted with a given email address.

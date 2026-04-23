@@ -1,45 +1,60 @@
 import Map "mo:core/Map";
-import Set "mo:core/Set";
-import List "mo:core/List";
-import ReviewTypes "types/review";
-import Common "types/common";
 
-/// Migration: add `isApproved` field to every ReviewInternal record.
-/// All existing reviews default to approved = true so they remain visible.
 module {
-  // ── Old types (inline copy from .old/src/backend/types/review.mo) ────────
-
-  type OldReviewInternal = {
-    id : Common.ReviewId;
-    productId : Common.ProductId;
-    userId : Common.UserId;
-    rating : Nat;
-    titleEn : Text;
-    bodyEn : Text;
-    isVerifiedPurchase : Bool;
-    helpfulVotes : Nat;
-    helpfulVoters : Set.Set<Common.UserId>;
-    createdAt : Common.Timestamp;
+  // Old Enquiry type (before enquiryType and aiReply fields were added)
+  type OldEnquiryStatus = {
+    #new_;
+    #viewed;
+    #replied;
   };
 
-  // ── Actor state records ───────────────────────────────────────────────────
+  type OldEnquiry = {
+    id : Text;
+    name : Text;
+    email : Text;
+    phone : Text;
+    message : Text;
+    submittedAt : Int;
+    status : OldEnquiryStatus;
+  };
+
+  // New Enquiry type (with enquiryType and aiReply added)
+  type NewEnquiryStatus = {
+    #new_;
+    #viewed;
+    #replied;
+  };
+
+  type NewEnquiry = {
+    id : Text;
+    name : Text;
+    email : Text;
+    phone : Text;
+    message : Text;
+    submittedAt : Int;
+    status : NewEnquiryStatus;
+    enquiryType : Text;
+    aiReply : Text;
+  };
 
   type OldActor = {
-    reviews : Map.Map<Common.ReviewId, OldReviewInternal>;
+    enquiries : Map.Map<Text, OldEnquiry>;
   };
 
   type NewActor = {
-    reviews : Map.Map<Common.ReviewId, ReviewTypes.ReviewInternal>;
+    enquiries : Map.Map<Text, NewEnquiry>;
   };
 
-  // ── Migration function ────────────────────────────────────────────────────
-
   public func run(old : OldActor) : NewActor {
-    let reviews = old.reviews.map<Common.ReviewId, OldReviewInternal, ReviewTypes.ReviewInternal>(
-      func(_id, r) {
-        { r with isApproved = true };
+    let enquiries = old.enquiries.map<Text, OldEnquiry, NewEnquiry>(
+      func(_key, e) {
+        {
+          e with
+          enquiryType = "standard";
+          aiReply = "";
+        }
       }
     );
-    { reviews };
+    { enquiries };
   };
 };

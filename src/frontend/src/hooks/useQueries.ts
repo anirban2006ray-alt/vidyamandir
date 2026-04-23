@@ -27,6 +27,7 @@ import type {
   UpdateProductInput,
   UserProfile,
 } from "../backend.d.ts";
+import { getErrorMessage } from "../lib/utils";
 
 // ─── Products ───────────────────────────────────────────────────────────────
 
@@ -673,6 +674,35 @@ export function useListAllOrders(offset = BigInt(0), limit = BigInt(50)) {
 }
 
 // ─── Enquiries ────────────────────────────────────────────────────────────────
+
+export function useSubmitChatEnquiry() {
+  const { actor } = useActor(createActor);
+  return useMutation({
+    mutationFn: async ({
+      name,
+      email,
+      phone,
+      question,
+    }: {
+      name: string;
+      email: string;
+      phone: string;
+      question: string;
+    }): Promise<string> => {
+      if (!actor) throw new Error("Actor not available");
+      const result = await actor.submitChatEnquiry(
+        name,
+        email,
+        phone,
+        question,
+      );
+      if (result.__kind__ === "ok") {
+        return result.ok.aiReply;
+      }
+      throw new Error(getErrorMessage(result.err));
+    },
+  });
+}
 
 export function useSubmitEnquiry() {
   const { actor } = useActor(createActor);

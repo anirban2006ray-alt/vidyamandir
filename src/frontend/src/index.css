@@ -385,6 +385,144 @@
     background: oklch(var(--muted) / 0.6);
   }
 
+  /* PWA Download Card — desktop styled app card */
+  .pwa-card {
+    @apply flex flex-col items-center gap-3 p-6 bg-card border border-border rounded-xl;
+    box-shadow: var(--shadow-card);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .pwa-card:hover {
+    box-shadow: var(--shadow-elevated);
+    transform: translateY(-2px);
+  }
+  .pwa-icon {
+    @apply w-12 h-12 flex items-center justify-center;
+    color: oklch(var(--accent));
+  }
+  .pwa-label {
+    @apply text-sm font-semibold text-foreground;
+  }
+  .pwa-cta {
+    @apply w-full px-4 py-2.5 text-sm font-semibold text-center rounded-lg;
+    background: oklch(var(--accent));
+    color: oklch(var(--accent-foreground));
+    box-shadow: 0 2px 8px oklch(var(--accent) / 0.35);
+    transition: all 0.2s ease;
+  }
+  .pwa-cta:hover {
+    box-shadow: 0 4px 16px oklch(var(--accent) / 0.5);
+    transform: translateY(-1px);
+  }
+  .pwa-cta:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px oklch(var(--accent) / 0.3);
+  }
+
+  /* Chatbox Widget — floating container */
+  .chatbox-trigger {
+    @apply fixed bottom-6 right-6 z-40 w-14 h-14 flex items-center justify-center rounded-full;
+    background: oklch(var(--accent));
+    box-shadow: 0 4px 12px oklch(var(--accent) / 0.4);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .chatbox-trigger:hover {
+    box-shadow: 0 6px 24px oklch(var(--accent) / 0.6);
+    transform: scale(1.08);
+  }
+  .chatbox-trigger:active {
+    transform: scale(0.95);
+  }
+  .chatbox-trigger-icon {
+    @apply w-6 h-6;
+    color: oklch(var(--accent-foreground));
+  }
+  .chatbox-pulse {
+    animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Chatbox Dialog — premium card overlay */
+  .chatbox-dialog {
+    @apply fixed bottom-24 right-6 z-40 w-96 max-w-[calc(100vw-24px)] flex flex-col;
+    background: oklch(var(--card));
+    border: 1px solid oklch(var(--border));
+    border-radius: 12px;
+    box-shadow: var(--shadow-elevated);
+    animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @media (max-width: 640px) {
+    .chatbox-dialog {
+      @apply w-full right-0 left-0 mx-3 bottom-20;
+    }
+  }
+
+  /* Chatbox Header */
+  .chatbox-header {
+    @apply px-4 py-4 border-b border-border flex items-center justify-between;
+  }
+  .chatbox-title {
+    @apply font-display font-semibold text-foreground text-base;
+  }
+  .chatbox-close {
+    @apply w-8 h-8 flex items-center justify-center rounded-lg;
+    background: oklch(var(--muted) / 0.3);
+    color: oklch(var(--muted-foreground));
+    transition: all 0.2s ease;
+  }
+  .chatbox-close:hover {
+    background: oklch(var(--accent) / 0.15);
+    color: oklch(var(--accent));
+  }
+
+  /* Chatbox Messages */
+  .chatbox-messages {
+    @apply flex-1 overflow-y-auto p-4 space-y-3 max-h-80;
+  }
+  .message {
+    @apply flex gap-2 animate-fade-in;
+  }
+  .message-bot {
+    @apply justify-start;
+  }
+  .message-user {
+    @apply justify-end;
+  }
+  .message-bubble {
+    @apply px-4 py-2.5 rounded-lg text-sm max-w-xs break-words;
+  }
+  .message-bot .message-bubble {
+    background: oklch(var(--muted) / 0.5);
+    color: oklch(var(--foreground));
+  }
+  .message-user .message-bubble {
+    background: oklch(var(--accent) / 0.85);
+    color: oklch(var(--accent-foreground));
+  }
+
+  /* Chatbox Form */
+  .chatbox-form {
+    @apply p-4 border-t border-border flex gap-2;
+  }
+  .chatbox-input {
+    @apply flex-1 bg-input border border-border rounded-lg px-3 py-2.5 text-sm text-foreground;
+    @apply placeholder:text-muted-foreground;
+    @apply focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent;
+    transition: all 0.2s ease;
+  }
+  .chatbox-submit {
+    @apply w-10 h-10 flex items-center justify-center rounded-lg;
+    background: oklch(var(--accent));
+    color: oklch(var(--accent-foreground));
+    box-shadow: 0 1px 4px oklch(var(--accent) / 0.3);
+    transition: all 0.2s ease;
+  }
+  .chatbox-submit:hover {
+    box-shadow: 0 2px 8px oklch(var(--accent) / 0.4);
+    transform: translateY(-1px);
+  }
+  .chatbox-submit:active {
+    transform: translateY(0);
+  }
+
   /* Reduce motion support */
   @media (prefers-reduced-motion: reduce) {
     .transition-smooth,
@@ -394,7 +532,10 @@
     .cta-primary,
     .animate-fade-in,
     .animate-slide-up,
-    .animate-scale-in {
+    .animate-scale-in,
+    .pwa-card,
+    .chatbox-trigger,
+    .chatbox-dialog {
       transition: none !important;
       animation: none !important;
       transform: none !important;
@@ -452,5 +593,15 @@
   }
   100% {
     background-position: 0% 50%;
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    box-shadow: 0 4px 12px oklch(var(--accent) / 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 20px oklch(var(--accent) / 0.6);
   }
 }

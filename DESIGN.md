@@ -41,6 +41,8 @@ Multi-tier shadow system: subtle (1px), card (4-6px), elevated (10-15px). Light 
 - **Secondary Buttons**: `btn-secondary` → muted background, 8px radius, darker hover, 40px min height
 - **Input Fields**: `input-field` → 8px radius border, focus ring on accent color, placeholder muted, 40px min height
 - **Language Toggle**: top-right header, EN | BN link style, smooth click feedback
+- **PWA Download Cards**: `pwa-card` → desktop-styled app card, 8px radius, card shadow, hover lift 2px, centered icon/label, orange CTA button full-width
+- **Chatbox Widget**: `chatbox-trigger` (fixed bottom-right) + `chatbox-dialog` (floating card overlay) → 12px radius dialog, slideInRight 0.3s animation, message bubbles (bot: muted bg, user: orange bg), input field at bottom, smooth transitions
 
 ## Motion & Micro-interactions
 - **Smooth base transition**: `transition-smooth` (0.3s cubic-bezier) on all interactive elements

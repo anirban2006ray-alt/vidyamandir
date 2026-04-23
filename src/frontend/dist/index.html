@@ -11,10 +11,29 @@
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <script type="module" crossorigin src="/assets/index-I7mPq6na.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-rghSY332.css">
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Vidyamandir" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Vidyamandir" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <script type="module" crossorigin src="/assets/index-C7rxycPz.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-C_Nu9Mss.css">
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').then(function (registration) {
+            console.log('[SW] Registered:', registration.scope);
+          }).catch(function (err) {
+            console.warn('[SW] Registration failed:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>

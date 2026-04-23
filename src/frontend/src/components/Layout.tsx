@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { WifiOff } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { FloatingChatbox } from "./FloatingChatbox";
 import { FloatingEnquiry } from "./FloatingEnquiry";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
@@ -61,6 +62,7 @@ export function Layout({ children }: LayoutProps) {
         <ErrorBoundary>{children}</ErrorBoundary>
       </main>
       <Footer />
+      <FloatingChatbox />
       <FloatingEnquiry />
       <Toaster
         position="bottom-right"

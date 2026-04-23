@@ -24,6 +24,7 @@ const OrderDetailPage = lazy(() => import("./pages/OrderDetailPage"));
 const AccountPage = lazy(() => import("./pages/AccountPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
+const DownloadPage = lazy(() => import("./pages/DownloadPage"));
 
 // Root route with Layout wrapper
 const rootRoute = createRootRoute({
@@ -122,6 +123,12 @@ const checkoutRoute = createRoute({
   component: CheckoutPage,
 });
 
+const downloadRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/download",
+  component: DownloadPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   shopRoute,
@@ -134,6 +141,7 @@ const routeTree = rootRoute.addChildren([
   accountRoute,
   adminRoute,
   checkoutRoute,
+  downloadRoute,
 ]);
 
 const router = createRouter({ routeTree });

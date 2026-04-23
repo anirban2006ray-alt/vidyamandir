@@ -127,6 +127,8 @@ export interface CreateReviewInput {
 export interface Enquiry {
   'id' : string,
   'status' : EnquiryStatus,
+  'aiReply' : string,
+  'enquiryType' : string,
   'name' : string,
   'submittedAt' : Timestamp,
   'email' : string,
@@ -495,6 +497,11 @@ export interface _SERVICE {
   'searchProducts' : ActorMethod<[string, bigint], Array<ProductView>>,
   'setDefaultAddress' : ActorMethod<[AddressId], boolean>,
   'setStripeConfiguration' : ActorMethod<[StripeConfiguration], undefined>,
+  'submitChatEnquiry' : ActorMethod<
+    [string, string, string, string],
+    { 'ok' : { 'aiReply' : string, 'enquiryId' : string } } |
+      { 'err' : AppError }
+  >,
   'submitEnquiry' : ActorMethod<
     [string, string, string, string],
     { 'ok' : string } |

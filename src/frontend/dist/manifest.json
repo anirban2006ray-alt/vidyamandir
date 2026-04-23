@@ -1,0 +1,28 @@
+{
+  "name": "Vidyamandir — বিদ্যামন্দির",
+  "short_name": "Vidyamandir",
+  "description": "Local bookshop — Purba Bardhaman",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a1628",
+  "theme_color": "#e65c00",
+  "orientation": "portrait-primary",
+  "lang": "en-IN",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "categories": ["books", "shopping", "education"],
+  "dir": "ltr"
+}

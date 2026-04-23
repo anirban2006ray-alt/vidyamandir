@@ -279,7 +279,9 @@ type EnquiryStatus =
  };
 type Enquiry = 
  record {
+   aiReply: text;
    email: text;
+   enquiryType: text;
    id: text;
    message: text;
    name: text;
@@ -548,6 +550,15 @@ service : {
   searchProducts: (searchTerm: text, limit: nat) -> (vec ProductView) query;
   setDefaultAddress: (addressId: AddressId) -> (bool);
   setStripeConfiguration: (config: StripeConfiguration) -> ();
+  submitChatEnquiry: (name: text, email: text, phone: text, question:
+   text) ->
+   (variant {
+      err: AppError;
+      ok: record {
+            aiReply: text;
+            enquiryId: text;
+          };
+    });
   submitEnquiry: (name: text, email: text, phone: text, message: text) ->
    (variant {
       err: AppError;

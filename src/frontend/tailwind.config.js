@@ -145,6 +145,10 @@ export default {
           from: { transform: "rotate(0deg)" },
           to: { transform: "rotate(360deg)" },
         },
+        "pulse-soft": {
+          "0%, 100%": { boxShadow: "0 4px 12px oklch(var(--accent) / 0.4)" },
+          "50%": { boxShadow: "0 4px 20px oklch(var(--accent) / 0.6)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -156,6 +160,7 @@ export default {
         "slide-in-right": "slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) both",
         pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         spin: "spin 0.8s linear infinite",
+        "pulse-soft": "pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
       spacing: {
         18: "4.5rem",

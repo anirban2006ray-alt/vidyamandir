@@ -612,6 +612,132 @@ function CategoryNav() {
   );
 }
 
+// ─── Install App Section ──────────────────────────────────────────────────────
+
+const PLATFORM_PILLS = [
+  { icon: "🤖", label: "Android", labelBn: "অ্যান্ড্রয়েড" },
+  { icon: "🍎", label: "iOS / iPhone", labelBn: "আইফোন" },
+  { icon: "🖥️", label: "Windows / Mac", labelBn: "উইন্ডোজ / ম্যাক" },
+];
+
+function InstallAppSection() {
+  const { lang } = useLanguage();
+  const navigate = useNavigate();
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-50px" });
+
+  return (
+    <section
+      ref={ref}
+      className="border-b border-border relative overflow-hidden"
+      data-ocid="install_app.section"
+      style={{
+        background:
+          "linear-gradient(135deg, oklch(0.12 0.08 255 / 0.6) 0%, oklch(0.10 0.07 265) 50%, oklch(0.14 0.09 255 / 0.8) 100%)",
+      }}
+    >
+      {/* Orange glow accent */}
+      <div
+        className="absolute right-0 top-0 bottom-0 w-1/2 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse at right center, oklch(0.55 0.25 38 / 0.08), transparent 65%)",
+        }}
+      />
+      <div className="relative max-w-screen-xl mx-auto px-4 py-7">
+        <div className="flex flex-col sm:flex-row items-center gap-5">
+          {/* Left: text */}
+          <motion.div
+            className="flex-1 min-w-0 text-center sm:text-left"
+            initial={{ opacity: 0, x: -16 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.45 }}
+          >
+            <div className="flex items-center gap-2 justify-center sm:justify-start mb-1.5">
+              <span
+                className="text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-widest"
+                style={{
+                  background: "oklch(var(--accent) / 0.12)",
+                  border: "1px solid oklch(var(--accent) / 0.3)",
+                  color: "oklch(var(--accent))",
+                }}
+              >
+                {lang === "bn" ? "অ্যাপ ডাউনলোড" : "Download App"}
+              </span>
+            </div>
+            <h2
+              className="font-display font-black text-lg md:text-xl leading-tight mb-1"
+              style={{ color: "oklch(0.97 0 0)", letterSpacing: "-0.02em" }}
+            >
+              {lang === "bn" ? "আমাদের অ্যাপ ইনস্টল করুন" : "Download Our App"}
+            </h2>
+            <p className="text-sm" style={{ color: "oklch(0.97 0 0 / 0.5)" }}>
+              {lang === "bn"
+                ? "অ্যান্ড্রয়েড, iOS বা উইন্ডোজে ইনস্টল করুন"
+                : "Install on Android, iOS or Windows"}
+            </p>
+          </motion.div>
+
+          {/* Center: platform pills */}
+          <motion.div
+            className="flex flex-wrap items-center justify-center gap-2"
+            initial={{ opacity: 0, y: 10 }}
+            animate={inView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.45, delay: 0.1 }}
+          >
+            {PLATFORM_PILLS.map((p, i) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => navigate({ to: "/download" })}
+                data-ocid={`install_app.platform_pill.${i + 1}`}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold transition-smooth whitespace-nowrap"
+                style={{
+                  background: "oklch(1 0 0 / 0.05)",
+                  border: "1.5px solid oklch(var(--accent) / 0.3)",
+                  color: "oklch(0.97 0 0 / 0.8)",
+                }}
+                onMouseEnter={(e) => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.background = "oklch(var(--accent) / 0.12)";
+                  el.style.borderColor = "oklch(var(--accent) / 0.6)";
+                  el.style.color = "oklch(var(--accent))";
+                }}
+                onMouseLeave={(e) => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.background = "oklch(1 0 0 / 0.05)";
+                  el.style.borderColor = "oklch(var(--accent) / 0.3)";
+                  el.style.color = "oklch(0.97 0 0 / 0.8)";
+                }}
+              >
+                <span>{p.icon}</span>
+                <span>{lang === "bn" ? p.labelBn : p.label}</span>
+              </button>
+            ))}
+          </motion.div>
+
+          {/* Right: CTA */}
+          <motion.div
+            initial={{ opacity: 0, x: 16 }}
+            animate={inView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.45, delay: 0.15 }}
+            className="flex-shrink-0"
+          >
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/download" })}
+              data-ocid="install_app.cta_button"
+              className="cta-primary px-6 py-3 rounded-full text-xs font-black uppercase tracking-widest whitespace-nowrap"
+            >
+              📲 {lang === "bn" ? "ইনস্টল করুন" : "Get the App"}
+            </button>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Perks Strip ──────────────────────────────────────────────────────────────
 
 function PerksStrip() {
@@ -1258,6 +1384,9 @@ export default function HomePage() {
 
       {/* Category pills */}
       <CategoryNav />
+
+      {/* Install App banner */}
+      <InstallAppSection />
 
       {/* Perks cards */}
       <PerksStrip />

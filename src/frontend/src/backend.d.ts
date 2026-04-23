@@ -233,6 +233,8 @@ export interface AdminReviewView {
 export interface Enquiry {
     id: string;
     status: EnquiryStatus;
+    aiReply: string;
+    enquiryType: string;
     name: string;
     submittedAt: Timestamp;
     email: string;
@@ -567,6 +569,16 @@ export interface backendInterface {
     searchProducts(searchTerm: string, limit: bigint): Promise<Array<ProductView>>;
     setDefaultAddress(addressId: AddressId): Promise<boolean>;
     setStripeConfiguration(config: StripeConfiguration): Promise<void>;
+    submitChatEnquiry(name: string, email: string, phone: string, question: string): Promise<{
+        __kind__: "ok";
+        ok: {
+            aiReply: string;
+            enquiryId: string;
+        };
+    } | {
+        __kind__: "err";
+        err: AppError;
+    }>;
     submitEnquiry(name: string, email: string, phone: string, message: string): Promise<{
         __kind__: "ok";
         ok: string;

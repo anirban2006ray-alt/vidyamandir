@@ -23,10 +23,12 @@ import ReviewMixin "mixins/review-api";
 import OrderMixin "mixins/order-api";
 import UserMixin "mixins/user-api";
 import EnquiryMixin "mixins/enquiry-api";
+import Migration "migration";
 
 
 
 
+(with migration = Migration.run)
 actor {
   // --- Authorization ---
   let accessControlState = AccessControl.initState();

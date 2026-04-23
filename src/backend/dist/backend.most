@@ -1,4 +1,4 @@
-// Version: 1.0.0
+// Version: 3.0.0
 type AddressId__345838458 = Nat;
 type Address__114457332 =
   {
@@ -60,7 +60,9 @@ type Data__791452850<K, V> =
 type EnquiryStatus__983916285 = {#new_; #replied; #viewed};
 type Enquiry__582474784 =
   {
+    aiReply : Text;
     email : Text;
+    enquiryType : Text;
     id : Text;
     message : Text;
     name : Text;
@@ -129,6 +131,17 @@ type Node__46230540<K, V> =
   {#internal : Internal__8484328<K, V>; #leaf : Leaf__809889148<K, V>};
 type Node__92254746<T> =
   {#internal : Internal__667636161<T>; #leaf : Leaf__520550824<T>};
+type OldEnquiryStatus__128787220 = {#new_; #replied; #viewed};
+type OldEnquiry__932350669 =
+  {
+    email : Text;
+    id : Text;
+    message : Text;
+    name : Text;
+    phone : Text;
+    status : OldEnquiryStatus__128787220;
+    submittedAt : Int
+  };
 type OrderId__197865225 = Nat;
 type OrderItem__970180480 =
   {
@@ -252,7 +265,117 @@ type UserProfile__1009003526 =
     preferredLanguage : {#bengali; #english}
   };
 type UserRole__1054455867 = {#admin; #guest; #user};
-actor {
+actor ({
+  stable accessControlState :
+    {
+      var adminAssigned : Bool;
+      userRoles : Map__605269027<Principal, UserRole__1054455867>
+    };
+  stable addresses :
+    {
+      var root :
+        Node__46230540<UserId__158757552, List__415060402<Address__114457332>>;
+      var size : Nat__490723111
+    };
+  stable analyticsCache : [var ?AnalyticsCacheEntry__844287939];
+  stable analyticsEvents :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?AnalyticsEvent__782593073]];
+      var elementIndex : Nat__490723111
+    };
+  stable answers :
+    {
+      var root :
+        Node__46230540<AnswerId__847472744, AnswerInternal__972653366>;
+      var size : Nat__490723111
+    };
+  stable carts :
+    {
+      var root :
+        Node__46230540<UserId__158757552,
+                        List__415060402<CartItem__1044444615>>;
+      var size : Nat__490723111
+    };
+  in enquiries : Map__605269027<Text, OldEnquiry__932350669>;
+  stable flashSales :
+    {
+      var root : Node__46230540<FlashSaleId__219302441, FlashSale__192530270>;
+      var size : Nat__490723111
+    };
+  stable nextAddressId : [var Nat];
+  stable nextAnswerId : [var Nat];
+  stable nextEnquiryId : [var Nat];
+  stable nextFlashSaleId : [var Nat];
+  stable nextOrderId : [var Nat];
+  stable nextProductId : [var Nat];
+  stable nextPromoCodeId : [var Nat];
+  stable nextQuestionId : [var Nat];
+  stable nextReviewId : [var Nat];
+  stable orderIdempotencyKeys :
+    {
+      var root : Node__46230540<Text, IdempotencyEntry__829985196>;
+      var size : Nat__490723111
+    };
+  stable orders :
+    {
+      var root : Node__46230540<OrderId__197865225, Order__720360493>;
+      var size : Nat__490723111
+    };
+  stable products :
+    {
+      var root : Node__46230540<ProductId__160010635, Product__389207432>;
+      var size : Nat__490723111
+    };
+  stable profiles :
+    {
+      var root : Node__46230540<UserId__158757552, UserProfile__1009003526>;
+      var size : Nat__490723111
+    };
+  stable promoCodes :
+    {
+      var root : Node__46230540<Text, PromoCode__597433591>;
+      var size : Nat__490723111
+    };
+  stable purchasedProductsByUser :
+    {
+      var root :
+        Node__46230540<UserId__158757552,
+                        Set__532252804<ProductId__160010635>>;
+      var size : Nat__490723111
+    };
+  stable questions :
+    {
+      var root : Node__46230540<QuestionId__77764146, Question__415208960>;
+      var size : Nat__490723111
+    };
+  stable rateLimitMap :
+    {
+      var root : Node__46230540<Text, RateLimitEntry__256567683>;
+      var size : Nat__490723111
+    };
+  stable recentlyViewed :
+    {
+      var root :
+        Node__46230540<UserId__158757552,
+                        List__415060402<ProductId__160010635>>;
+      var size : Nat__490723111
+    };
+  stable reviews :
+    {
+      var root :
+        Node__46230540<ReviewId__496285678, ReviewInternal__542788455>;
+      var size : Nat__490723111
+    };
+  stable var stripeConfiguration : ?StripeConfiguration__96897619;
+  stable wishlists :
+    {
+      var root :
+        Node__46230540<UserId__158757552,
+                        List__415060402<ProductId__160010635>>;
+      var size : Nat__490723111
+    }
+}, {
   stable accessControlState :
     {
       var adminAssigned : Bool;
@@ -366,4 +489,4 @@ actor {
                         List__415060402<ProductId__160010635>>;
       var size : Nat__490723111
     }
-};
+}) ;

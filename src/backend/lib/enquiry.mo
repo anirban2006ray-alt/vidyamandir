@@ -128,6 +128,8 @@ module {
       message = trimmedMessage;
       submittedAt = Time.now();
       status = #new_;
+      enquiryType = "standard";
+      aiReply = "";
     };
     enquiries.add(id, enquiry);
     #ok(enquiry);

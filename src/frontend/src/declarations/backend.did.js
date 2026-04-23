@@ -176,6 +176,8 @@ export const EnquiryStatus = IDL.Variant({
 export const Enquiry = IDL.Record({
   'id' : IDL.Text,
   'status' : EnquiryStatus,
+  'aiReply' : IDL.Text,
+  'enquiryType' : IDL.Text,
   'name' : IDL.Text,
   'submittedAt' : Timestamp,
   'email' : IDL.Text,
@@ -540,6 +542,16 @@ export const idlService = IDL.Service({
     ),
   'setDefaultAddress' : IDL.Func([AddressId], [IDL.Bool], []),
   'setStripeConfiguration' : IDL.Func([StripeConfiguration], [], []),
+  'submitChatEnquiry' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [
+        IDL.Variant({
+          'ok' : IDL.Record({ 'aiReply' : IDL.Text, 'enquiryId' : IDL.Text }),
+          'err' : AppError,
+        }),
+      ],
+      [],
+    ),
   'submitEnquiry' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Variant({ 'ok' : IDL.Text, 'err' : AppError })],
@@ -761,6 +773,8 @@ export const idlFactory = ({ IDL }) => {
   const Enquiry = IDL.Record({
     'id' : IDL.Text,
     'status' : EnquiryStatus,
+    'aiReply' : IDL.Text,
+    'enquiryType' : IDL.Text,
     'name' : IDL.Text,
     'submittedAt' : Timestamp,
     'email' : IDL.Text,
@@ -1127,6 +1141,16 @@ export const idlFactory = ({ IDL }) => {
       ),
     'setDefaultAddress' : IDL.Func([AddressId], [IDL.Bool], []),
     'setStripeConfiguration' : IDL.Func([StripeConfiguration], [], []),
+    'submitChatEnquiry' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [
+          IDL.Variant({
+            'ok' : IDL.Record({ 'aiReply' : IDL.Text, 'enquiryId' : IDL.Text }),
+            'err' : AppError,
+          }),
+        ],
+        [],
+      ),
     'submitEnquiry' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Variant({ 'ok' : IDL.Text, 'err' : AppError })],
