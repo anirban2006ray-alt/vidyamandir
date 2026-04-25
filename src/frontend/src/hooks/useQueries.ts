@@ -704,8 +704,17 @@ export function useSubmitChatEnquiry() {
   });
 }
 
+/**
+ * Submit an enquiry and enrich the result with an aiReply.
+ * The backend submitEnquiry returns just an ID. We also call submitChatEnquiry
+ * to get an AI-powered reply that can be shown in the confirmation screen
+ * and sent to the user's email/phone.
+ *
+ * Returns a result shape that includes aiReply for the UI to display.
+ */
 export function useSubmitEnquiry() {
   const { actor } = useActor(createActor);
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
       name,
@@ -717,10 +726,58 @@ export function useSubmitEnquiry() {
       email: string;
       phone: string;
       message: string;
-    }) => {
+    }): Promise<
+      | { __kind__: "ok"; ok: string; aiReply: string }
+      | { __kind__: "err"; err: import("../backend.d.ts").AppError }
+    > => {
       if (!actor) throw new Error("Actor not available");
-      return actor.submitEnquiry(name, email, phone, message);
+
+      // 1. Submit the main enquiry (persistent storage, email/SMS alerts)
+      const result = await actor.submitEnquiry(name, email, phone, message);
+      if (result.__kind__ === "err") {
+        return result;
+      }
+
+      // 2. Attempt to get an AI reply via chat enquiry (best-effort)
+      let aiReply =
+        "Thank you for contacting Vidyamandir! We have received your enquiry and will get back to you within 24 hours. A confirmation has been sent to your email and phone number.";
+      try {
+        const chatResult = await actor.submitChatEnquiry(
+          name,
+          email,
+          phone,
+          message,
+        );
+        if (chatResult.__kind__ === "ok" && chatResult.ok.aiReply) {
+          aiReply = chatResult.ok.aiReply;
+        }
+      } catch {
+        // AI call failed — use default thank-you message
+      }
+
+      return { __kind__: "ok", ok: result.ok, aiReply };
     },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["myEnquiries"] });
+      void qc.invalidateQueries({ queryKey: ["allEnquiries"] });
+    },
+  });
+}
+
+/**
+ * Fetch the current user's own enquiries by their email address.
+ * Requires the user to have a profile with an email set.
+ */
+export function useGetMyEnquiries(email: string) {
+  const { actor, isFetching } = useActor(createActor);
+  const { isAuthenticated } = useInternetIdentity();
+  return useQuery<Enquiry[]>({
+    queryKey: ["myEnquiries", email],
+    queryFn: async () => {
+      if (!actor || !email.trim()) return [];
+      return actor.getMyEnquiries(email);
+    },
+    enabled: !!actor && !isFetching && isAuthenticated && !!email.trim(),
   });
 }
 
@@ -994,6 +1051,24 @@ export function useGetAnalyticsEvents(offset = BigInt(0), limit = BigInt(50)) {
       return actor.getAnalyticsEvents(offset, limit);
     },
     enabled: !!actor && !isFetching && isAuthenticated,
+  });
+}
+
+// ─── Downloads ────────────────────────────────────────────────────────────────
+
+/** Record a PWA install/download attempt by platform.
+ * Falls back gracefully if the backend method is not yet deployed. */
+export function useRecordDownload() {
+  const { actor } = useActor(createActor);
+  return useMutation({
+    mutationFn: async (platform: string) => {
+      if (!actor) return;
+      const a = actor as unknown as Record<string, unknown>;
+      if (typeof a.recordDownload === "function") {
+        await (a.recordDownload as (p: string) => Promise<void>)(platform);
+      }
+      // No-op if backend method not available yet
+    },
   });
 }
 

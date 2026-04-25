@@ -23,12 +23,12 @@ import ReviewMixin "mixins/review-api";
 import OrderMixin "mixins/order-api";
 import UserMixin "mixins/user-api";
 import EnquiryMixin "mixins/enquiry-api";
-import Migration "migration";
 
 
 
 
-(with migration = Migration.run)
+
+
 actor {
   // --- Authorization ---
   let accessControlState = AccessControl.initState();
@@ -88,7 +88,9 @@ actor {
   // --- Enquiry state ---
   let enquiries = Map.empty<Text, EnquiryTypes.Enquiry>();
   let nextEnquiryId : [var Nat] = [var 1];
-  include EnquiryMixin(accessControlState, enquiries, nextEnquiryId, transform, rateLimitMap);
+  // Download tracking: platform name -> cumulative count
+  let downloadCounts = Map.empty<Text, Nat>();
+  include EnquiryMixin(accessControlState, enquiries, nextEnquiryId, transform, rateLimitMap, downloadCounts);
 
   // --- Seed catalog if empty ---
   if (products.isEmpty()) {

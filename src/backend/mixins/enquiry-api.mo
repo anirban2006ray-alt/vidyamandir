@@ -1,3 +1,5 @@
+import Array "mo:core/Array";
+import Iter "mo:core/Iter";
 import Map "mo:core/Map";
 import Time "mo:core/Time";
 import Text "mo:core/Text";
@@ -17,6 +19,7 @@ mixin (
   nextEnquiryId : [var Nat],
   transform : OutCall.Transform,
   rateLimitMap : Map.Map<Text, Common.RateLimitEntry>,
+  downloadCounts : Map.Map<Text, Nat>,
 ) {
   // ── Rate limit helper ─────────────────────────────────────────────────────
 
@@ -42,31 +45,7 @@ mixin (
     };
   };
 
-  /// Submit a new enquiry — open to anyone, no auth required.
-  /// Validates all fields server-side. Rate limited: max 5 per caller per hour.
-  /// Fires a fire-and-forget email notification to the store owner on success.
-  public shared ({ caller }) func submitEnquiry(
-    name : Text,
-    email : Text,
-    phone : Text,
-    message : Text,
-  ) : async { #ok : Text; #err : Common.AppError } {
-    let rlKey = "enquiry:" # caller.toText();
-    if (not checkEnquiryRateLimit(rlKey, 5, 3600)) {
-      return #err(#rateLimitExceeded);
-    };
-    switch (EnquiryLib.submitEnquiry(enquiries, nextEnquiryId[0], name, email, phone, message)) {
-      case (#ok(enquiry)) {
-        nextEnquiryId[0] += 1;
-        // Fire-and-forget: notify store owner via email
-        ignore Notifications.sendEnquiryNotification(enquiry, transform);
-        #ok(enquiry.id);
-      };
-      case (#err(e)) { #err(e) };
-    };
-  };
-
-  // ── Chat AI enquiry ───────────────────────────────────────────────────────
+  // ── JSON / text helpers ───────────────────────────────────────────────────
 
   /// Validate email: same rules as lib/enquiry.mo (local copy to avoid re-import).
   func isValidChatEmail(email : Text) : Bool {
@@ -140,14 +119,11 @@ mixin (
   /// Parse the AI reply text from an OpenAI chat completion JSON response.
   /// Looks for: "content":"<reply>" in choices[0].message.content
   func parseOpenAiReply(json : Text) : Text {
-    // Find the last occurrence of "content":" and extract until the closing "
-    // Simple parser: find substring pattern
     let marker = "\"content\":\"";
     let chars = json.toArray();
     let markerChars = marker.toArray();
     let jsonLen = chars.size();
     let markerLen = markerChars.size();
-    // Search from end to find the last "content":" (choices[0].message.content is last)
     var pos = jsonLen;
     var found = false;
     var contentStart = 0;
@@ -166,7 +142,6 @@ mixin (
       };
     };
     if (not found) return "Thank you for your question! Please visit Vidyamandir at Balgona, GT Road, Purba Bardhaman or call 9475727810 for assistance.";
-    // Extract until unescaped closing quote
     var reply = "";
     var idx = contentStart;
     var escaped = false;
@@ -193,6 +168,91 @@ mixin (
       reply
     };
   };
+
+  /// Default thank-you fallback used when OpenAI is unavailable.
+  let DEFAULT_THANK_YOU : Text =
+    "Thank you for contacting Vidyamandir! We have received your enquiry and will get back to you within 24 hours. " #
+    "Our team is happy to help. Visit us at Balgona, GT Road, Purba Bardhaman.";
+
+  /// Call OpenAI and return an AI-generated reply, or DEFAULT_THANK_YOU on failure.
+  func fetchAiReply(userMessage : Text) : async Text {
+    let systemPrompt =
+      "You are the AI assistant for Vidyamandir, a Bengali bookshop located at Balgona, GT Road, " #
+      "Purba Bardhaman, West Bengal, India (PIN 713125). Phone: 9475727810. " #
+      "Email: anirbanray030000@gmail.com. " #
+      "You help customers with questions about books, prices, orders, shipping, returns, and the shop. " #
+      "Respond in the language the customer uses (English or Bengali). " #
+      "Be friendly, helpful, and concise. Start every response with 'Thank you for contacting Vidyamandir!' " #
+      "If you don't know specific pricing, suggest the customer visit the website or contact the store directly. " #
+      "End with 'We hope to see you soon!'";
+
+    let openAiPayload =
+      "{\"model\":\"gpt-3.5-turbo\",\"messages\":[" #
+      "{\"role\":\"system\",\"content\":\"" # escapeJsonChat(systemPrompt) # "\"}," #
+      "{\"role\":\"user\",\"content\":\"" # escapeJsonChat(userMessage) # "\"}" #
+      "],\"max_tokens\":400,\"temperature\":0.7}";
+
+    let openAiHeaders : [OutCall.Header] = [
+      { name = "Content-Type"; value = "application/json" },
+      { name = "Authorization"; value = "Bearer " # Notifications.OPENAI_API_KEY },
+    ];
+
+    try {
+      let responseText = await OutCall.httpPostRequest(
+        "https://api.openai.com/v1/chat/completions",
+        openAiHeaders,
+        openAiPayload,
+        transform,
+      );
+      parseOpenAiReply(responseText);
+    } catch (_) {
+      DEFAULT_THANK_YOU;
+    };
+  };
+
+  // ── Standard enquiry ──────────────────────────────────────────────────────
+
+  /// Submit a new enquiry — open to anyone, no auth required.
+  /// Validates all fields server-side. Rate limited: max 5 per caller per hour.
+  /// Fires AI reply to user email + SMS; fires store notification email.
+  public shared ({ caller }) func submitEnquiry(
+    name : Text,
+    email : Text,
+    phone : Text,
+    message : Text,
+  ) : async { #ok : Text; #err : Common.AppError } {
+    let rlKey = "enquiry:" # caller.toText();
+    if (not checkEnquiryRateLimit(rlKey, 5, 3600)) {
+      return #err(#rateLimitExceeded);
+    };
+    switch (EnquiryLib.submitEnquiry(enquiries, nextEnquiryId[0], name, email, phone, message)) {
+      case (#ok(enquiry)) {
+        nextEnquiryId[0] += 1;
+
+        // Generate AI reply (warm, thank-you response) — fallback to default if OpenAI fails
+        let aiReply = await fetchAiReply(enquiry.message);
+
+        // Persist the AI reply back into the stored enquiry
+        ignore EnquiryLib.updateEnquiryAiReply(enquiries, enquiry.id, aiReply);
+
+        // Fire-and-forget: notify store owner via email
+        ignore Notifications.sendEnquiryNotification(enquiry, transform);
+
+        // Fire-and-forget: send AI reply to user's email
+        ignore Notifications.sendChatReplyToUser(enquiry.name, enquiry.email, enquiry.message, aiReply, transform);
+
+        // Fire-and-forget: send AI reply SMS to user's phone (if provided)
+        if (enquiry.phone.size() > 0) {
+          ignore Notifications.sendChatSmsToUser(enquiry.phone, aiReply, transform);
+        };
+
+        #ok(enquiry.id);
+      };
+      case (#err(e)) { #err(e) };
+    };
+  };
+
+  // ── Chat AI enquiry ───────────────────────────────────────────────────────
 
   /// Submit a chat enquiry: calls OpenAI, stores enquiry, fires notifications.
   /// Rate limited: max 10 chat messages per caller per hour.
@@ -229,38 +289,8 @@ mixin (
       return #err(#validationError("Question must be at most 2000 characters"));
     };
 
-    // Call OpenAI chat completions API
-    let systemPrompt =
-      "You are the AI assistant for Vidyamandir, a Bengali bookshop located at Balgona, GT Road, " #
-      "Purba Bardhaman, West Bengal, India (PIN 713125). Phone: 9475727810. " #
-      "Email: anirbanray030000@gmail.com. " #
-      "You help customers with questions about books, prices, orders, shipping, returns, and the shop. " #
-      "Respond in the language the customer uses (English or Bengali). " #
-      "Be friendly, helpful, and concise. If you don't know specific pricing, " #
-      "suggest the customer visit the website or contact the store directly.";
-
-    let openAiPayload =
-      "{\"model\":\"gpt-3.5-turbo\",\"messages\":[" #
-      "{\"role\":\"system\",\"content\":\"" # escapeJsonChat(systemPrompt) # "\"}," #
-      "{\"role\":\"user\",\"content\":\"" # escapeJsonChat(trimQuestion) # "\"}" #
-      "],\"max_tokens\":400,\"temperature\":0.7}";
-
-    let openAiHeaders : [OutCall.Header] = [
-      { name = "Content-Type"; value = "application/json" },
-      { name = "Authorization"; value = "Bearer " # Notifications.OPENAI_API_KEY },
-    ];
-
-    let aiReply : Text = try {
-      let responseText = await OutCall.httpPostRequest(
-        "https://api.openai.com/v1/chat/completions",
-        openAiHeaders,
-        openAiPayload,
-        transform,
-      );
-      parseOpenAiReply(responseText);
-    } catch (_) {
-      "Thank you for contacting Vidyamandir! Please visit our store at Balgona, GT Road, Purba Bardhaman or call 9475727810 for assistance.";
-    };
+    // Get AI reply
+    let aiReply = await fetchAiReply(trimQuestion);
 
     // Store as chat enquiry
     let enquiryId = "ENQ-" # nextEnquiryId[0].toText();
@@ -295,6 +325,27 @@ mixin (
   public query func getMyEnquiries(email : Text) : async [EnquiryTypes.Enquiry] {
     if (email.size() == 0) return [];
     EnquiryLib.getEnquiriesByEmail(enquiries, email);
+  };
+
+  // ── Download tracking ─────────────────────────────────────────────────────
+
+  /// Record a download attempt for a platform ('android', 'ios', 'windows', 'desktop').
+  /// Open to all callers — no auth required.
+  public shared func recordDownload(platform : Text) : async () {
+    let key = platform.toLower();
+    let current = switch (downloadCounts.get(key)) {
+      case null 0;
+      case (?n) n;
+    };
+    downloadCounts.add(key, current + 1);
+  };
+
+  /// Return download counts per platform for the admin dashboard.
+  public query ({ caller }) func getDownloadStats() : async [(Text, Nat)] {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Admins only");
+    };
+    downloadCounts.entries().toArray();
   };
 
   // ── Admin API ─────────────────────────────────────────────────────────────

@@ -432,6 +432,7 @@ export interface _SERVICE {
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getCart' : ActorMethod<[], Array<CartItem>>,
+  'getDownloadStats' : ActorMethod<[], Array<[string, bigint]>>,
   'getEnquiryCount' : ActorMethod<[], bigint>,
   'getFlashSale' : ActorMethod<[FlashSaleId], [] | [FlashSaleView]>,
   'getMyEnquiries' : ActorMethod<[string], Array<Enquiry>>,
@@ -481,6 +482,7 @@ export interface _SERVICE {
     { 'ok' : AnswerId } |
       { 'err' : AppError }
   >,
+  'recordDownload' : ActorMethod<[string], undefined>,
   'recordRecentlyViewed' : ActorMethod<[ProductId], undefined>,
   'removeFromCart' : ActorMethod<[ProductId], undefined>,
   'removeFromWishlist' : ActorMethod<[ProductId], undefined>,

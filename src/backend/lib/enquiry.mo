@@ -191,6 +191,21 @@ module {
     };
   };
 
+  /// Update the aiReply field of an existing enquiry. Returns true if updated.
+  public func updateEnquiryAiReply(
+    enquiries : Map.Map<Text, EnquiryTypes.Enquiry>,
+    id : Text,
+    aiReply : Text,
+  ) : Bool {
+    switch (enquiries.get(id)) {
+      case null { false };
+      case (?e) {
+        enquiries.add(id, { e with aiReply });
+        true;
+      };
+    };
+  };
+
   /// Build a plain-text email notification body for a new enquiry.
   public func buildEnquiryEmailBody(enquiry : EnquiryTypes.Enquiry) : Text {
     "New enquiry received at Vidyamandir Bookshop\n\n"

@@ -595,6 +595,7 @@ export interface backendInterface {
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCart(): Promise<Array<CartItem>>;
+    getDownloadStats(): Promise<Array<[string, bigint]>>;
     getEnquiryCount(): Promise<bigint>;
     getFlashSale(id: FlashSaleId): Promise<FlashSaleView | null>;
     getMyEnquiries(email: string): Promise<Array<Enquiry>>;
@@ -632,6 +633,7 @@ export interface backendInterface {
         __kind__: "err";
         err: AppError;
     }>;
+    recordDownload(platform: string): Promise<void>;
     recordRecentlyViewed(productId: ProductId): Promise<void>;
     removeFromCart(productId: ProductId): Promise<void>;
     removeFromWishlist(productId: ProductId): Promise<void>;
@@ -1164,6 +1166,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getDownloadStats(): Promise<Array<[string, bigint]>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getDownloadStats();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getDownloadStats();
+            return result;
+        }
+    }
     async getEnquiryCount(): Promise<bigint> {
         if (this.processError) {
             try {
@@ -1602,6 +1618,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.postAnswer(arg0, arg1);
             return from_candid_variant_n91(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async recordDownload(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.recordDownload(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.recordDownload(arg0);
+            return result;
         }
     }
     async recordRecentlyViewed(arg0: ProductId): Promise<void> {

@@ -418,4 +418,6 @@ export const mockBackend: backendInterface = {
   validatePromoCode: async () => null,
   voteAnswerHelpful: async () => ({ __kind__: "ok" as const, ok: true }),
   voteReviewHelpful: async () => ({ __kind__: "ok" as const, ok: true }),
+  recordDownload: async () => undefined,
+  getDownloadStats: async () => [],
 };

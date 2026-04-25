@@ -492,6 +492,10 @@ service : {
   getCallerUserProfile: () -> (opt UserProfile) query;
   getCallerUserRole: () -> (UserRole) query;
   getCart: () -> (vec CartItem) query;
+  getDownloadStats: () -> (vec record {
+                                 text;
+                                 nat;
+                               }) query;
   getEnquiryCount: () -> (nat) query;
   getFlashSale: (id: FlashSaleId) -> (opt FlashSaleView) query;
   getMyEnquiries: (email: text) -> (vec Enquiry) query;
@@ -534,6 +538,7 @@ service : {
       err: AppError;
       ok: AnswerId;
     });
+  recordDownload: (platform: text) -> ();
   recordRecentlyViewed: (productId: ProductId) -> ();
   removeFromCart: (productId: ProductId) -> ();
   removeFromWishlist: (productId: ProductId) -> ();

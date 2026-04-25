@@ -60,6 +60,7 @@ import type {
   PromoCode,
 } from "../backend.d.ts";
 
+import { ThankYouImage } from "../components/FloatingEnquiry";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { useAuth, useIsAdmin } from "../hooks/use-auth";
 import { useLanguage } from "../hooks/use-language";
@@ -1354,9 +1355,54 @@ function EnquiriesTab({
                     className="px-4 pb-4 ml-13 border-t"
                     style={{ borderColor: "oklch(var(--border))" }}
                   >
+                    {/* Thank You header banner */}
+                    <div
+                      className="mt-3 px-4 py-3 rounded-xl flex items-center gap-2.5"
+                      style={{
+                        background:
+                          "linear-gradient(90deg, oklch(0.68 0.25 42 / 0.92), oklch(0.58 0.27 38 / 0.92))",
+                      }}
+                    >
+                      <span
+                        className="text-lg flex-shrink-0"
+                        role="img"
+                        aria-label="gratitude"
+                      >
+                        🙏
+                      </span>
+                      <p className="text-sm font-bold text-white leading-snug">
+                        ধন্যবাদ • Thank You for your enquiry!
+                      </p>
+                    </div>
+
+                    {/* Full message */}
                     <p className="text-sm text-foreground/80 mt-3 leading-relaxed bg-muted/20 rounded-xl p-3">
                       {enq.message}
                     </p>
+
+                    {/* AI Response card */}
+                    <div
+                      className="mt-3 rounded-xl p-4 text-sm leading-relaxed"
+                      style={{
+                        background: "oklch(var(--card))",
+                        border: "1px solid oklch(var(--border))",
+                        borderLeft: "4px solid oklch(var(--accent))",
+                      }}
+                    >
+                      <p
+                        className="text-[11px] font-bold uppercase tracking-widest mb-2"
+                        style={{ color: "oklch(var(--accent))" }}
+                      >
+                        AI Response / আমাদের উত্তর:
+                      </p>
+                      <p className="text-foreground">
+                        {enq.aiReply?.trim()
+                          ? enq.aiReply
+                          : "Thank you for reaching out! We will get back to you shortly. / আপনার যোগাযোগের জন্য ধন্যবাদ! আমরা শীঘ্রই আপনার সাথে যোগাযোগ করব।"}
+                      </p>
+                    </div>
+
+                    {/* Action buttons */}
                     <div className="flex items-center gap-2 mt-3 flex-wrap">
                       {enq.status !== "viewed" && enq.status !== "replied" && (
                         <Button
@@ -1403,6 +1449,9 @@ function EnquiriesTab({
                         Reply on WhatsApp
                       </a>
                     </div>
+
+                    {/* Illustrated Thank-You card at the bottom */}
+                    <ThankYouImage />
                   </div>
                 )}
               </div>

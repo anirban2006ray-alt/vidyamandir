@@ -512,6 +512,7 @@ export interface backendInterface {
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCart(): Promise<Array<CartItem>>;
+    getDownloadStats(): Promise<Array<[string, bigint]>>;
     getEnquiryCount(): Promise<bigint>;
     getFlashSale(id: FlashSaleId): Promise<FlashSaleView | null>;
     getMyEnquiries(email: string): Promise<Array<Enquiry>>;
@@ -549,6 +550,7 @@ export interface backendInterface {
         __kind__: "err";
         err: AppError;
     }>;
+    recordDownload(platform: string): Promise<void>;
     recordRecentlyViewed(productId: ProductId): Promise<void>;
     removeFromCart(productId: ProductId): Promise<void>;
     removeFromWishlist(productId: ProductId): Promise<void>;

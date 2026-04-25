@@ -493,6 +493,304 @@ function HeroSection() {
   );
 }
 
+// ─── Book Offer Section ───────────────────────────────────────────────────────
+
+function BookOfferSection() {
+  const { lang } = useLanguage();
+  const navigate = useNavigate();
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-60px" });
+
+  return (
+    <section
+      ref={ref}
+      data-ocid="book_offer.section"
+      className="relative overflow-hidden border-b border-border"
+      style={{
+        background:
+          "linear-gradient(135deg, oklch(0.11 0.07 258) 0%, oklch(0.14 0.09 255) 55%, oklch(0.12 0.08 260) 100%)",
+      }}
+    >
+      {/* Subtle dot-grid texture */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.035]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle, oklch(0.97 0 0) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+        }}
+      />
+      {/* Orange radial glow — right */}
+      <div
+        className="absolute right-0 top-0 bottom-0 w-2/3 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse at 85% center, oklch(0.62 0.27 40 / 0.13), transparent 65%)",
+        }}
+      />
+
+      <div className="relative max-w-screen-xl mx-auto px-4 py-10 md:py-14">
+        <motion.div
+          initial={{ opacity: 0, y: 28 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.55 }}
+          className="flex flex-col md:flex-row items-center justify-center gap-10 md:gap-16"
+        >
+          {/* ── 3D Book Graphic ── */}
+          <div className="flex-shrink-0 relative flex items-center justify-center">
+            {/* Glow halo behind the book */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background:
+                  "radial-gradient(ellipse at center, oklch(0.62 0.27 40 / 0.18), transparent 65%)",
+                filter: "blur(12px)",
+              }}
+            />
+            {/* Book wrapper: perspective container */}
+            <div
+              className="animate-book-float animate-book-glow relative"
+              style={{
+                width: 140,
+                height: 185,
+                borderRadius: "4px 8px 8px 4px",
+                background:
+                  "linear-gradient(135deg, oklch(0.13 0.09 258), oklch(0.18 0.10 255))",
+              }}
+            >
+              {/* Spine */}
+              <div
+                className="absolute left-0 top-0 bottom-0"
+                style={{
+                  width: 18,
+                  borderRadius: "4px 0 0 4px",
+                  background:
+                    "linear-gradient(180deg, oklch(0.58 0.27 38), oklch(0.50 0.25 35))",
+                  boxShadow: "inset -3px 0 8px rgba(0,0,0,0.35)",
+                }}
+              >
+                <div
+                  className="h-full flex items-center justify-center"
+                  style={{
+                    writingMode: "vertical-rl",
+                    transform: "rotate(180deg)",
+                  }}
+                >
+                  <span
+                    className="text-[8px] font-black tracking-widest uppercase"
+                    style={{
+                      color: "oklch(0.98 0 0 / 0.9)",
+                      fontFamily: "var(--font-display)",
+                    }}
+                  >
+                    বিদ্যামন্দির
+                  </span>
+                </div>
+              </div>
+
+              {/* Cover — right of spine */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  left: 18,
+                  borderRadius: "0 8px 8px 0",
+                  background:
+                    "linear-gradient(160deg, oklch(0.16 0.10 258), oklch(0.12 0.08 255))",
+                  overflow: "hidden",
+                }}
+              >
+                {/* Top orange accent stripe */}
+                <div
+                  style={{
+                    height: 4,
+                    background:
+                      "linear-gradient(90deg, oklch(0.62 0.27 40), oklch(0.55 0.25 38))",
+                  }}
+                />
+                {/* Open-book SVG illustration */}
+                <div className="flex items-center justify-center mt-3">
+                  <svg
+                    width="60"
+                    height="44"
+                    viewBox="0 0 60 44"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <rect
+                      x="2"
+                      y="4"
+                      width="26"
+                      height="36"
+                      rx="2"
+                      fill="oklch(0.20 0.08 255)"
+                      stroke="oklch(0.30 0.08 255)"
+                      strokeWidth="1"
+                    />
+                    <rect
+                      x="32"
+                      y="4"
+                      width="26"
+                      height="36"
+                      rx="2"
+                      fill="oklch(0.20 0.08 255)"
+                      stroke="oklch(0.30 0.08 255)"
+                      strokeWidth="1"
+                    />
+                    <line
+                      x1="30"
+                      y1="4"
+                      x2="30"
+                      y2="40"
+                      stroke="oklch(0.50 0.25 38)"
+                      strokeWidth="1.5"
+                    />
+                    {[10, 16, 22, 28].map((y) => (
+                      <g key={y}>
+                        <line
+                          x1="6"
+                          y1={y}
+                          x2="24"
+                          y2={y}
+                          stroke="oklch(0.55 0 0 / 0.35)"
+                          strokeWidth="1"
+                          strokeLinecap="round"
+                        />
+                        <line
+                          x1="36"
+                          y1={y}
+                          x2="54"
+                          y2={y}
+                          stroke="oklch(0.55 0 0 / 0.35)"
+                          strokeWidth="1"
+                          strokeLinecap="round"
+                        />
+                      </g>
+                    ))}
+                  </svg>
+                </div>
+                {/* Title on cover */}
+                <div className="px-3 mt-2 text-center">
+                  <p
+                    className="font-display font-black leading-tight"
+                    style={{
+                      fontSize: 11,
+                      color: "oklch(0.97 0 0 / 0.92)",
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    বিদ্যামন্দির
+                  </p>
+                  <p
+                    className="font-body mt-0.5"
+                    style={{ fontSize: 7, color: "oklch(0.72 0.25 40)" }}
+                  >
+                    Book House
+                  </p>
+                </div>
+                {/* Bottom orange stripe */}
+                <div
+                  className="absolute bottom-0 left-0 right-0"
+                  style={{
+                    height: 4,
+                    background:
+                      "linear-gradient(90deg, oklch(0.55 0.25 38), oklch(0.62 0.27 40))",
+                  }}
+                />
+              </div>
+
+              {/* Page edge on right side */}
+              <div
+                className="absolute top-1 bottom-1 right-0 pointer-events-none"
+                style={{
+                  width: 6,
+                  background:
+                    "repeating-linear-gradient(to bottom, oklch(0.90 0 0 / 0.6), oklch(0.90 0 0 / 0.6) 1px, oklch(0.80 0 0 / 0.2) 1px, oklch(0.80 0 0 / 0.2) 3px)",
+                  borderRadius: "0 6px 6px 0",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* ── Text + Offer Badge ── */}
+          <div className="flex flex-col items-center md:items-start gap-5 text-center md:text-left max-w-xs">
+            {/* Discount Badge */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={inView ? { opacity: 1, scale: 1 } : {}}
+              transition={{ duration: 0.45, delay: 0.15 }}
+              className="animate-discount-pulse inline-flex flex-col items-center rounded-full px-7 py-3 shadow-elevated"
+              data-ocid="book_offer.discount_badge"
+              style={{
+                background:
+                  "linear-gradient(135deg, oklch(0.60 0.27 38), oklch(0.53 0.25 35))",
+                boxShadow: "0 4px 24px oklch(0.58 0.27 38 / 0.45)",
+              }}
+            >
+              <span
+                className="font-display font-black text-xl leading-tight"
+                style={{ color: "oklch(0.98 0 0)", letterSpacing: "-0.02em" }}
+              >
+                📚 UP TO 40% OFF
+              </span>
+              <span
+                className="font-body text-xs font-semibold mt-0.5"
+                style={{ color: "oklch(0.98 0 0 / 0.82)" }}
+              >
+                {lang === "bn"
+                  ? "এই মৌসুমে বাছাই করা বইয়ে"
+                  : "Select Books This Season"}
+              </span>
+            </motion.div>
+
+            {/* Heading */}
+            <motion.div
+              initial={{ opacity: 0, x: -16 }}
+              animate={inView ? { opacity: 1, x: 0 } : {}}
+              transition={{ duration: 0.45, delay: 0.22 }}
+            >
+              <h2
+                className="font-display font-black text-2xl md:text-3xl leading-tight"
+                style={{
+                  color: "oklch(0.97 0 0)",
+                  letterSpacing: "-0.03em",
+                }}
+              >
+                {lang === "bn"
+                  ? "সেরা বইয়ে সেরা ছাড়"
+                  : "Big Discounts on Great Books"}
+              </h2>
+              <p
+                className="font-body text-sm mt-2"
+                style={{ color: "oklch(0.97 0 0 / 0.55)" }}
+              >
+                {lang === "bn"
+                  ? "পূর্ব বর্ধমানের সেরা বইয়ের দোকান — বিদ্যামন্দির"
+                  : "Purba Bardhaman's favourite bookshop — Vidyamandir"}
+              </p>
+            </motion.div>
+
+            {/* CTA */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={inView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.4, delay: 0.3 }}
+            >
+              <button
+                type="button"
+                onClick={() => navigate({ to: "/shop" })}
+                data-ocid="book_offer.shop_now_button"
+                className="cta-primary px-8 py-3 rounded-full font-black uppercase tracking-widest text-sm"
+              >
+                Shop Now →
+              </button>
+            </motion.div>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Category Nav ─────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
@@ -1381,6 +1679,9 @@ export default function HomePage() {
 
       {/* Hero */}
       <HeroSection />
+
+      {/* Book & Discount Offer Animation */}
+      <BookOfferSection />
 
       {/* Category pills */}
       <CategoryNav />

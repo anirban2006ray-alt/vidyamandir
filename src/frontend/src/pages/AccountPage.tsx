@@ -21,6 +21,7 @@ import {
   Globe,
   LogIn,
   MapPin,
+  MessageSquare,
   Package,
   Plus,
   Save,
@@ -36,15 +37,18 @@ import { Variant_bengali_english } from "../backend";
 import type {
   Address,
   AddressInput,
+  Enquiry,
   OrderStatus,
   UserProfile,
 } from "../backend.d.ts";
+import { ThankYouImage } from "../components/FloatingEnquiry";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { useAuth, useUserProfile } from "../hooks/use-auth";
 import { useLanguage } from "../hooks/use-language";
 import {
   useAddAddress,
   useDeleteAddress,
+  useGetMyEnquiries,
   useListAddresses,
   useListMyOrders,
   useSaveUserProfile,
@@ -1026,6 +1030,250 @@ function AddressBook() {
   );
 }
 
+// ─── Enquiry Thank-You Banner ─────────────────────────────────────────────────
+
+function EnquiryThankYouBanner() {
+  return (
+    <div
+      className="w-full rounded-xl overflow-hidden"
+      style={{
+        background:
+          "linear-gradient(135deg, oklch(0.14 0.08 255) 0%, oklch(0.18 0.09 255) 60%, oklch(0.16 0.07 255) 100%)",
+        border: "1px solid oklch(0.22 0.07 255)",
+      }}
+    >
+      <div
+        className="h-1 w-full"
+        style={{
+          background:
+            "linear-gradient(90deg, oklch(0.72 0.25 40), oklch(0.85 0.2 60), oklch(0.72 0.25 40))",
+        }}
+      />
+      <div className="px-5 py-4 flex flex-col items-center gap-1.5 text-center">
+        <div className="flex items-center gap-3">
+          <span className="text-xl" role="img" aria-label="books">
+            📚
+          </span>
+          <p
+            className="font-display font-bold text-base leading-tight"
+            style={{ color: "oklch(0.72 0.25 40)" }}
+          >
+            ধন্যবাদ • Thank You
+          </p>
+          <span className="text-xl" role="img" aria-label="books">
+            📚
+          </span>
+        </div>
+        <p className="text-xs" style={{ color: "oklch(0.65 0.06 255)" }}>
+          — Vidyamandir, Balgona, Purba Bardhaman
+        </p>
+      </div>
+      <div
+        className="h-0.5 w-full"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, oklch(0.72 0.25 40 / 0.5), transparent)",
+        }}
+      />
+    </div>
+  );
+}
+
+// ─── Enquiry Card ─────────────────────────────────────────────────────────────
+
+function EnquiryCard({ enquiry, idx }: { enquiry: Enquiry; idx: number }) {
+  const { lang } = useLanguage();
+
+  const defaultAiReply =
+    "Thank you for contacting Vidyamandir! We have received your enquiry and will get back to you within 24 hours.";
+
+  const dateStr = new Date(
+    Number(enquiry.submittedAt / BigInt(1_000_000)),
+  ).toLocaleDateString(lang === "bn" ? "bn-IN" : "en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  return (
+    <div
+      className="rounded-2xl overflow-hidden shadow-card border border-border"
+      style={{ background: "oklch(var(--card))" }}
+      data-ocid={`account.enquiry.${idx + 1}`}
+    >
+      {/* Thank-you top banner */}
+      <div
+        className="px-5 py-3.5 flex items-center gap-2"
+        style={{
+          background:
+            "linear-gradient(90deg, oklch(var(--accent) / 0.15), oklch(var(--accent) / 0.05))",
+          borderBottom: "1px solid oklch(var(--accent) / 0.2)",
+        }}
+      >
+        <span className="text-lg">🙏</span>
+        <p
+          className="text-sm font-semibold leading-snug"
+          style={{ color: "oklch(var(--accent))" }}
+        >
+          {lang === "bn"
+            ? `ধন্যবাদ ${enquiry.name}! আপনার বার্তা আমরা পেয়েছি।`
+            : `Thank you for your enquiry, ${enquiry.name}! We value your message.`}
+        </p>
+      </div>
+
+      <div className="p-5 space-y-4">
+        {/* Meta row */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <span className="text-xs text-muted-foreground">{dateStr}</span>
+          <span
+            className={`text-[11px] px-2.5 py-1 rounded-full font-semibold border ${
+              enquiry.status === "replied"
+                ? "bg-green-500/10 text-green-400 border-green-500/30"
+                : enquiry.status === "viewed"
+                  ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                  : "bg-muted text-muted-foreground border-border"
+            }`}
+          >
+            {enquiry.status === "replied"
+              ? lang === "bn"
+                ? "উত্তর দেওয়া হয়েছে"
+                : "Replied"
+              : enquiry.status === "viewed"
+                ? lang === "bn"
+                  ? "দেখা হয়েছে"
+                  : "Viewed"
+                : lang === "bn"
+                  ? "নতুন"
+                  : "New"}
+          </span>
+        </div>
+
+        {/* Message */}
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">
+            {lang === "bn" ? "আপনার বার্তা:" : "Your Message:"}
+          </p>
+          <p className="text-sm text-foreground leading-relaxed">
+            {enquiry.message}
+          </p>
+        </div>
+
+        {/* AI Response */}
+        <div
+          className="rounded-xl p-4 text-sm leading-relaxed"
+          style={{
+            background: "oklch(var(--background))",
+            border: "1px solid oklch(var(--border))",
+            borderLeft: "4px solid oklch(var(--accent))",
+          }}
+        >
+          <p
+            className="text-[11px] font-bold uppercase tracking-widest mb-2"
+            style={{ color: "oklch(var(--accent))" }}
+          >
+            {lang === "bn" ? "আমাদের উত্তর:" : "Our Response:"}
+          </p>
+          <p className="text-foreground">
+            {enquiry.aiReply?.trim() ? enquiry.aiReply : defaultAiReply}
+          </p>
+        </div>
+
+        {/* Decorative bottom banner */}
+        <EnquiryThankYouBanner />
+
+        {/* Illustrated Thank-You card */}
+        <ThankYouImage />
+      </div>
+    </div>
+  );
+}
+
+// ─── My Enquiries ─────────────────────────────────────────────────────────────
+
+function MyEnquiries({ profile }: { profile: UserProfile | null }) {
+  const { lang } = useLanguage();
+  const email = profile?.email ?? "";
+  const { data: enquiries, isLoading } = useGetMyEnquiries(email);
+
+  if (!email) {
+    return (
+      <div
+        className="flex flex-col items-center py-14 gap-4"
+        data-ocid="account.enquiries_no_email"
+      >
+        <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center">
+          <MessageSquare size={28} className="text-muted-foreground/40" />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-semibold text-foreground">
+            {lang === "bn" ? "ইমেইল সেট নেই" : "No email address set"}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+            {lang === "bn"
+              ? "অনুসন্ধান ইতিহাস দেখতে প্রোফাইলে ইমেইল যোগ করুন।"
+              : "Add your email in profile settings to see your enquiry history."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4" data-ocid="account.enquiries_loading_state">
+        {["eq-sk-1", "eq-sk-2"].map((k) => (
+          <Skeleton key={k} className="h-64 w-full rounded-2xl" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!enquiries || enquiries.length === 0) {
+    return (
+      <div
+        className="flex flex-col items-center py-14 gap-4"
+        data-ocid="account.enquiries_empty_state"
+      >
+        <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center">
+          <MessageSquare size={28} className="text-muted-foreground/40" />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-semibold text-foreground">
+            {lang === "bn" ? "কোনো অনুসন্ধান নেই" : "No enquiries yet"}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+            {lang === "bn"
+              ? "আপনার প্রশ্ন বা মতামত পাঠাতে নিচের বোতামটি ব্যবহার করুন।"
+              : "Use the chat button in the bottom-right corner to send us an enquiry."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="space-y-5 animate-fade-in"
+      data-ocid="account.enquiries_section"
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <div className="w-7 h-7 rounded-lg bg-accent/15 flex items-center justify-center">
+          <MessageSquare size={14} className="text-accent" />
+        </div>
+        <span className="text-sm font-semibold">
+          {lang === "bn" ? "আমার অনুসন্ধান" : "My Enquiries"}
+        </span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {enquiries.length} {lang === "bn" ? "টি" : "total"}
+        </span>
+      </div>
+      {enquiries.map((enquiry, idx) => (
+        <EnquiryCard key={enquiry.id} enquiry={enquiry} idx={idx} />
+      ))}
+    </div>
+  );
+}
+
 // ─── Main Account Page ────────────────────────────────────────────────────────
 
 export default function AccountPage() {
@@ -1061,7 +1309,7 @@ export default function AccountPage() {
       </div>
 
       <Tabs defaultValue="profile" data-ocid="account.tabs">
-        <TabsList className="bg-muted/30 rounded-xl h-auto p-1 gap-1 mb-6 w-full">
+        <TabsList className="bg-muted/30 rounded-xl h-auto p-1 gap-1 mb-6 w-full flex-wrap">
           <TabsTrigger
             value="profile"
             data-ocid="account.profile_tab"
@@ -1076,7 +1324,15 @@ export default function AccountPage() {
             className="flex-1 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-subtle py-2.5 text-sm font-semibold transition-smooth"
           >
             <MapPin size={13} className="mr-1.5" />
-            {t("savedAddresses")}
+            {lang === "bn" ? "ঠিকানা" : "Addresses"}
+          </TabsTrigger>
+          <TabsTrigger
+            value="enquiries"
+            data-ocid="account.enquiries_tab"
+            className="flex-1 rounded-lg data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-subtle py-2.5 text-sm font-semibold transition-smooth"
+          >
+            <MessageSquare size={13} className="mr-1.5" />
+            {lang === "bn" ? "অনুসন্ধান" : "Enquiries"}
           </TabsTrigger>
         </TabsList>
 
@@ -1086,6 +1342,10 @@ export default function AccountPage() {
 
         <TabsContent value="addresses">
           <AddressBook />
+        </TabsContent>
+
+        <TabsContent value="enquiries">
+          <MyEnquiries profile={profile ?? null} />
         </TabsContent>
       </Tabs>
     </div>
