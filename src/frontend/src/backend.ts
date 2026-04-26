@@ -147,8 +147,10 @@ export interface AnalyticsEvent {
 }
 export interface CallerLoginStatus {
     lastLoginAt?: bigint;
+    loginAttemptWindowSeconds: bigint;
     isLoggedIn: boolean;
     loginAttempts: bigint;
+    rateLimitResetAt?: bigint;
     isRateLimited: boolean;
 }
 export interface Enquiry {
@@ -599,6 +601,7 @@ export interface backendInterface {
     getAdminAnalytics(): Promise<AdminAnalytics>;
     getAnalyticsEvents(offset: bigint, limit: bigint): Promise<Array<AnalyticsEvent>>;
     getCallerLoginStatus(): Promise<CallerLoginStatus>;
+    getCallerPrincipal(): Promise<string>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCart(): Promise<Array<CartItem>>;
@@ -633,6 +636,7 @@ export interface backendInterface {
     listQuestions(productId: ProductId): Promise<Array<Question>>;
     listReviews(productId: ProductId): Promise<Array<Review>>;
     listReviewsSorted(productId: ProductId, sortMode: Variant_helpfulness_recency_rating): Promise<Array<Review>>;
+    ping(): Promise<boolean>;
     postAnswer(questionId: QuestionId, answerText: string): Promise<{
         __kind__: "ok";
         ok: AnswerId;
@@ -1150,6 +1154,20 @@ export class Backend implements backendInterface {
             return from_candid_CallerLoginStatus_n33(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getCallerPrincipal(): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getCallerPrincipal();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getCallerPrincipal();
+            return result;
+        }
+    }
     async getCallerUserProfile(): Promise<UserProfile | null> {
         if (this.processError) {
             try {
@@ -1623,6 +1641,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.listReviewsSorted(arg0, to_candid_variant_n93(this._uploadFile, this._downloadFile, arg1));
+            return result;
+        }
+    }
+    async ping(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.ping();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.ping();
             return result;
         }
     }
@@ -2152,19 +2184,25 @@ function from_candid_record_n29(_uploadFile: (file: ExternalBlob) => Promise<Uin
 }
 function from_candid_record_n34(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     lastLoginAt: [] | [bigint];
+    loginAttemptWindowSeconds: bigint;
     isLoggedIn: boolean;
     loginAttempts: bigint;
+    rateLimitResetAt: [] | [bigint];
     isRateLimited: boolean;
 }): {
     lastLoginAt?: bigint;
+    loginAttemptWindowSeconds: bigint;
     isLoggedIn: boolean;
     loginAttempts: bigint;
+    rateLimitResetAt?: bigint;
     isRateLimited: boolean;
 } {
     return {
         lastLoginAt: record_opt_to_undefined(from_candid_opt_n35(_uploadFile, _downloadFile, value.lastLoginAt)),
+        loginAttemptWindowSeconds: value.loginAttemptWindowSeconds,
         isLoggedIn: value.isLoggedIn,
         loginAttempts: value.loginAttempts,
+        rateLimitResetAt: record_opt_to_undefined(from_candid_opt_n35(_uploadFile, _downloadFile, value.rateLimitResetAt)),
         isRateLimited: value.isRateLimited
     };
 }

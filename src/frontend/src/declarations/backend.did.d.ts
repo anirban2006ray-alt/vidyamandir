@@ -89,8 +89,10 @@ export type AppError = { 'rateLimitExceeded' : null } |
   { 'alreadyReviewed' : null };
 export interface CallerLoginStatus {
   'lastLoginAt' : [] | [bigint],
+  'loginAttemptWindowSeconds' : bigint,
   'isLoggedIn' : boolean,
   'loginAttempts' : bigint,
+  'rateLimitResetAt' : [] | [bigint],
   'isRateLimited' : boolean,
 }
 export interface CartItem {
@@ -436,6 +438,7 @@ export interface _SERVICE {
   'getAdminAnalytics' : ActorMethod<[], AdminAnalytics>,
   'getAnalyticsEvents' : ActorMethod<[bigint, bigint], Array<AnalyticsEvent>>,
   'getCallerLoginStatus' : ActorMethod<[], CallerLoginStatus>,
+  'getCallerPrincipal' : ActorMethod<[], string>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getCart' : ActorMethod<[], Array<CartItem>>,
@@ -484,6 +487,7 @@ export interface _SERVICE {
     ],
     Array<Review>
   >,
+  'ping' : ActorMethod<[], boolean>,
   'postAnswer' : ActorMethod<
     [QuestionId, string],
     { 'ok' : AnswerId } |

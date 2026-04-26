@@ -336,7 +336,9 @@ type CallerLoginStatus =
    isLoggedIn: bool;
    isRateLimited: bool;
    lastLoginAt: opt int;
+   loginAttemptWindowSeconds: nat;
    loginAttempts: nat;
+   rateLimitResetAt: opt int;
  };
 type AppError = 
  variant {
@@ -497,6 +499,7 @@ service : {
   getAdminAnalytics: () -> (AdminAnalytics);
   getAnalyticsEvents: (offset: nat, limit: nat) -> (vec AnalyticsEvent) query;
   getCallerLoginStatus: () -> (CallerLoginStatus) query;
+  getCallerPrincipal: () -> (text) query;
   getCallerUserProfile: () -> (opt UserProfile) query;
   getCallerUserRole: () -> (UserRole) query;
   getCart: () -> (vec CartItem) query;
@@ -541,6 +544,7 @@ service : {
      rating;
      recency;
    }) -> (vec Review) query;
+  ping: () -> (bool) query;
   postAnswer: (questionId: QuestionId, answerText: text) ->
    (variant {
       err: AppError;

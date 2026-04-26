@@ -424,6 +424,8 @@ export const mockBackend: backendInterface = {
     isLoggedIn: true,
     lastLoginAt: undefined,
     loginAttempts: BigInt(0),
+    loginAttemptWindowSeconds: BigInt(60),
+    rateLimitResetAt: undefined,
     isRateLimited: false,
   }),
   pruneStaleRateLimits: async () => ({
@@ -431,4 +433,6 @@ export const mockBackend: backendInterface = {
     loginRateLimitsPruned: BigInt(0),
     idempotencyKeysPruned: BigInt(0),
   }),
+  getCallerPrincipal: async () => "2vxsx-fae",
+  ping: async () => true,
 };

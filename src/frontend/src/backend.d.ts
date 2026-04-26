@@ -65,8 +65,10 @@ export interface AnalyticsEvent {
 }
 export interface CallerLoginStatus {
     lastLoginAt?: bigint;
+    loginAttemptWindowSeconds: bigint;
     isLoggedIn: boolean;
     loginAttempts: bigint;
+    rateLimitResetAt?: bigint;
     isRateLimited: boolean;
 }
 export interface Enquiry {
@@ -516,6 +518,7 @@ export interface backendInterface {
     getAdminAnalytics(): Promise<AdminAnalytics>;
     getAnalyticsEvents(offset: bigint, limit: bigint): Promise<Array<AnalyticsEvent>>;
     getCallerLoginStatus(): Promise<CallerLoginStatus>;
+    getCallerPrincipal(): Promise<string>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCart(): Promise<Array<CartItem>>;
@@ -550,6 +553,7 @@ export interface backendInterface {
     listQuestions(productId: ProductId): Promise<Array<Question>>;
     listReviews(productId: ProductId): Promise<Array<Review>>;
     listReviewsSorted(productId: ProductId, sortMode: Variant_helpfulness_recency_rating): Promise<Array<Review>>;
+    ping(): Promise<boolean>;
     postAnswer(questionId: QuestionId, answerText: string): Promise<{
         __kind__: "ok";
         ok: AnswerId;

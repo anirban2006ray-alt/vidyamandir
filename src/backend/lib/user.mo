@@ -33,12 +33,17 @@ module {
 
   /// Check and increment the login attempt counter for a principal.
   /// Returns #ok if under the limit, #err(#rateLimitExceeded) if blocked.
+  /// Anonymous callers are skipped — rate limiting is only applied to authenticated principals.
   /// Must be called BEFORE any auth logic so failed attempts are counted.
   public func checkLoginRateLimit(
     loginRateLimits : Map.Map<Text, UserTypes.LoginRateLimitEntry>,
     principalText : Text,
     now : Int,
   ) : { #ok; #err : Common.AppError } {
+    // Skip rate limiting for anonymous principals
+    if (principalText == "2vxsx-fae") {
+      return #ok;
+    };
     let key = principalText;
     let existing = loginRateLimits.get(key);
     switch (existing) {
@@ -65,20 +70,23 @@ module {
   };
 
   /// Read-only view of login rate limit state for getCallerLoginStatus.
+  /// Returns attempts, isRateLimited, and the window reset timestamp (null when not rate-limited).
   public func getLoginRateLimitState(
     loginRateLimits : Map.Map<Text, UserTypes.LoginRateLimitEntry>,
     principalText : Text,
     now : Int,
-  ) : { attempts : Nat; isRateLimited : Bool } {
+  ) : { attempts : Nat; isRateLimited : Bool; resetAt : ?Int } {
     switch (loginRateLimits.get(principalText)) {
       case (?entry) {
         if (now - entry.windowStart < LOGIN_WINDOW_NS) {
-          { attempts = entry.count; isRateLimited = entry.count >= LOGIN_MAX_ATTEMPTS };
+          let isLimited = entry.count >= LOGIN_MAX_ATTEMPTS;
+          let resetAt = if (isLimited) ?(entry.windowStart + LOGIN_WINDOW_NS) else null;
+          { attempts = entry.count; isRateLimited = isLimited; resetAt };
         } else {
-          { attempts = 0; isRateLimited = false };
+          { attempts = 0; isRateLimited = false; resetAt = null };
         };
       };
-      case null { { attempts = 0; isRateLimited = false } };
+      case null { { attempts = 0; isRateLimited = false; resetAt = null } };
     };
   };
 
@@ -118,6 +126,8 @@ module {
       lastLoginAt;
       loginAttempts = rlState.attempts;
       isRateLimited = rlState.isRateLimited;
+      rateLimitResetAt = rlState.resetAt;
+      loginAttemptWindowSeconds = 60;
     };
   };
 

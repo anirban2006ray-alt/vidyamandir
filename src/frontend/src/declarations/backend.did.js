@@ -144,8 +144,10 @@ export const AnalyticsEvent = IDL.Record({
 });
 export const CallerLoginStatus = IDL.Record({
   'lastLoginAt' : IDL.Opt(IDL.Int),
+  'loginAttemptWindowSeconds' : IDL.Nat,
   'isLoggedIn' : IDL.Bool,
   'loginAttempts' : IDL.Nat,
+  'rateLimitResetAt' : IDL.Opt(IDL.Int),
   'isRateLimited' : IDL.Bool,
 });
 export const UserProfile = IDL.Record({
@@ -464,6 +466,7 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'getCallerLoginStatus' : IDL.Func([], [CallerLoginStatus], ['query']),
+  'getCallerPrincipal' : IDL.Func([], [IDL.Text], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getCart' : IDL.Func([], [IDL.Vec(CartItem)], ['query']),
@@ -529,6 +532,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(Review)],
       ['query'],
     ),
+  'ping' : IDL.Func([], [IDL.Bool], ['query']),
   'postAnswer' : IDL.Func(
       [QuestionId, IDL.Text],
       [IDL.Variant({ 'ok' : AnswerId, 'err' : AppError })],
@@ -765,8 +769,10 @@ export const idlFactory = ({ IDL }) => {
   });
   const CallerLoginStatus = IDL.Record({
     'lastLoginAt' : IDL.Opt(IDL.Int),
+    'loginAttemptWindowSeconds' : IDL.Nat,
     'isLoggedIn' : IDL.Bool,
     'loginAttempts' : IDL.Nat,
+    'rateLimitResetAt' : IDL.Opt(IDL.Int),
     'isRateLimited' : IDL.Bool,
   });
   const UserProfile = IDL.Record({
@@ -1079,6 +1085,7 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'getCallerLoginStatus' : IDL.Func([], [CallerLoginStatus], ['query']),
+    'getCallerPrincipal' : IDL.Func([], [IDL.Text], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getCart' : IDL.Func([], [IDL.Vec(CartItem)], ['query']),
@@ -1152,6 +1159,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(Review)],
         ['query'],
       ),
+    'ping' : IDL.Func([], [IDL.Bool], ['query']),
     'postAnswer' : IDL.Func(
         [QuestionId, IDL.Text],
         [IDL.Variant({ 'ok' : AnswerId, 'err' : AppError })],

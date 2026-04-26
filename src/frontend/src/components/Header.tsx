@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Heart,
   LayoutDashboard,
+  Loader2,
   LogIn,
   Menu,
   Search,
@@ -11,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useAuth, useIsAdmin } from "../hooks/use-auth";
 import { useCart } from "../hooks/use-cart";
 import { useLanguage } from "../hooks/use-language";
@@ -18,14 +20,47 @@ import { LanguageToggle } from "./LanguageToggle";
 
 export function Header() {
   const { lang, t } = useLanguage();
-  const { isAuthenticated, isInitializing, isLoggingIn, login, logout } =
-    useAuth();
+  const {
+    isAuthenticated,
+    isInitializing,
+    isLoggingIn,
+    loginError,
+    clearLoginError,
+    login,
+    logout,
+  } = useAuth();
   const { data: isAdmin } = useIsAdmin();
   const { totalItems } = useCart();
   const [searchInput, setSearchInput] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Show error toast whenever loginError changes (and is non-null)
+  useEffect(() => {
+    if (!loginError) return;
+    const isEnglish = lang !== "bn";
+    toast.error(
+      isEnglish
+        ? "Sign-in failed. Please try again."
+        : "সাইন-ইন ব্যর্থ হয়েছে। আবার চেষ্টা করুন।",
+      {
+        description: isEnglish
+          ? "If the problem persists, refresh the page."
+          : "সমস্যা থাকলে পেজটি রিফ্রেশ করুন।",
+        duration: 6000,
+        id: "login-error",
+      },
+    );
+    clearLoginError();
+  }, [loginError, lang, clearLoginError]);
+
+  // Navigate to account after successful login
+  useEffect(() => {
+    if (isAuthenticated) {
+      void navigate({ to: "/account" });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -79,6 +114,7 @@ export function Header() {
   }, [mobileMenuOpen]);
 
   const searchPlaceholder = lang === "bn" ? "বই খুঁজুন..." : "Search books...";
+  const isBusy = isInitializing || isLoggingIn;
 
   return (
     <header
@@ -101,7 +137,6 @@ export function Header() {
             data-ocid="header.logo_link"
             className="flex items-center gap-3 shrink-0 group"
           >
-            {/* Logo mark */}
             <div
               className="w-9 h-9 rounded-lg flex items-center justify-center relative overflow-hidden transition-smooth group-hover:scale-105"
               style={{
@@ -202,21 +237,18 @@ export function Header() {
                     <span>{t("admin")}</span>
                   </Link>
                 )}
-                {/* Icon buttons with pill hover */}
                 {[
                   {
                     to: "/wishlist",
                     icon: Heart,
                     label: t("wishlist"),
                     ocid: "header.wishlist_link",
-                    showBadge: false,
                   },
                   {
                     to: "/account",
                     icon: User,
                     label: t("account"),
                     ocid: "header.account_link",
-                    showBadge: false,
                   },
                 ].map(({ to, icon: Icon, label, ocid }) => (
                   <Link
@@ -306,10 +338,11 @@ export function Header() {
             ) : (
               <button
                 type="button"
-                onClick={login}
-                disabled={isInitializing || isLoggingIn}
+                onClick={() => void login()}
+                disabled={isBusy}
                 data-ocid="header.login_button"
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-smooth disabled:opacity-50 active:scale-95"
+                aria-label={lang === "bn" ? "সাইন ইন করুন" : "Sign in"}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-smooth disabled:opacity-70 active:scale-95 min-w-[72px] justify-center"
                 style={{
                   background:
                     "linear-gradient(135deg, oklch(var(--accent)), oklch(0.58 0.27 38))",
@@ -317,8 +350,22 @@ export function Header() {
                   boxShadow: "0 2px 8px oklch(var(--accent) / 0.4)",
                 }}
               >
-                <LogIn size={13} />
-                {isInitializing ? t("loading") : t("login")}
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>{lang === "bn" ? "লগইন..." : "Signing in..."}</span>
+                  </>
+                ) : isInitializing ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" />
+                    <span>{lang === "bn" ? "লোড..." : "Loading..."}</span>
+                  </>
+                ) : (
+                  <>
+                    <LogIn size={13} />
+                    <span>{t("login")}</span>
+                  </>
+                )}
               </button>
             )}
 
@@ -539,12 +586,12 @@ export function Header() {
                 <button
                   type="button"
                   onClick={() => {
-                    login();
+                    void login();
                     setMobileMenuOpen(false);
                   }}
-                  disabled={isInitializing || isLoggingIn}
+                  disabled={isBusy}
                   data-ocid="header.mobile_login_button"
-                  className="w-full py-3 rounded-lg text-sm font-bold transition-smooth disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-lg text-sm font-bold transition-smooth disabled:opacity-70 flex items-center justify-center gap-2"
                   style={{
                     background:
                       "linear-gradient(135deg, oklch(var(--accent)), oklch(0.58 0.27 38))",
@@ -552,8 +599,17 @@ export function Header() {
                     boxShadow: "0 2px 12px oklch(var(--accent) / 0.4)",
                   }}
                 >
-                  <LogIn size={14} />
-                  {t("login")}
+                  {isLoggingIn ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      {lang === "bn" ? "লগইন হচ্ছে..." : "Signing in..."}
+                    </>
+                  ) : (
+                    <>
+                      <LogIn size={14} />
+                      {t("login")}
+                    </>
+                  )}
                 </button>
               )}
             </div>

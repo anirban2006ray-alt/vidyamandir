@@ -32,7 +32,7 @@ import {
   Trash2,
   User,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Variant_bengali_english } from "../backend";
 import type {
@@ -117,11 +117,40 @@ const EMPTY_ADDRESS: AddressInput = {
 function AuthGate({
   onLogin,
   isRateLimited,
+  rateLimitSeconds = 60,
+  isLoggingIn = false,
 }: {
   onLogin: () => void;
   isRateLimited?: boolean;
+  rateLimitSeconds?: number;
+  isLoggingIn?: boolean;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const [countdown, setCountdown] = useState(rateLimitSeconds);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Live countdown when rate-limited
+  useEffect(() => {
+    if (!isRateLimited) {
+      setCountdown(rateLimitSeconds);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
+    }
+    setCountdown(rateLimitSeconds);
+    intervalRef.current = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isRateLimited, rateLimitSeconds]);
+
   return (
     <div
       className="max-w-lg mx-auto px-4 py-20 flex flex-col items-center gap-8"
@@ -147,25 +176,49 @@ function AuthGate({
           className="flex items-start gap-3 rounded-xl border border-accent/40 bg-accent/10 px-5 py-4 max-w-xs text-left"
           data-ocid="account.rate_limit_warning"
           role="alert"
+          aria-live="polite"
         >
           <AlertTriangle
             size={18}
             className="shrink-0 mt-0.5 text-accent"
             aria-hidden="true"
           />
-          <p className="text-sm font-medium text-accent leading-snug">
-            Too many login attempts. Please wait 60 seconds and try again.
-          </p>
+          <div>
+            <p className="text-sm font-semibold text-accent leading-snug">
+              {lang === "bn"
+                ? "অনেকবার চেষ্টা করা হয়েছে। অপেক্ষা করুন।"
+                : "Too many login attempts."}
+            </p>
+            <p className="text-xs text-accent/80 mt-1 font-medium">
+              {countdown > 0
+                ? lang === "bn"
+                  ? `${countdown} সেকেন্ড পরে আবার চেষ্টা করুন`
+                  : `Try again in ${countdown}s`
+                : lang === "bn"
+                  ? "এখন আবার চেষ্টা করতে পারবেন"
+                  : "You may try again now"}
+            </p>
+          </div>
         </div>
       ) : (
         <button
           type="button"
           onClick={onLogin}
+          disabled={isLoggingIn}
           data-ocid="account.login_button"
-          className="cta-primary flex items-center gap-2 px-8 py-3"
+          className="cta-primary flex items-center gap-2 px-8 py-3 disabled:opacity-70"
         >
-          <LogIn size={16} />
-          {t("login")}
+          {isLoggingIn ? (
+            <>
+              <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              {lang === "bn" ? "লগইন হচ্ছে..." : "Signing in..."}
+            </>
+          ) : (
+            <>
+              <LogIn size={16} />
+              {t("login")}
+            </>
+          )}
         </button>
       )}
     </div>
@@ -1325,21 +1378,64 @@ function MyEnquiries({ profile }: { profile: UserProfile | null }) {
 
 export default function AccountPage() {
   const { t, lang } = useLanguage();
-  const { isAuthenticated, login } = useAuth();
-  const { data: profile, isLoading: profileLoading } = useUserProfile();
+  const { isAuthenticated, isLoggingIn, login } = useAuth();
+  const {
+    data: profile,
+    isLoading: profileLoading,
+    isError: profileError,
+    refetch: refetchProfile,
+  } = useUserProfile();
   const { data: loginStatus } = useCallerLoginStatus();
+
+  const rateLimitSeconds =
+    loginStatus?.loginAttemptWindowSeconds != null
+      ? Number(loginStatus.loginAttemptWindowSeconds)
+      : 60;
 
   if (!isAuthenticated) {
     return (
       <AuthGate
-        onLogin={login}
+        onLogin={() => void login()}
         isRateLimited={loginStatus?.isRateLimited ?? false}
+        rateLimitSeconds={rateLimitSeconds}
+        isLoggingIn={isLoggingIn}
       />
     );
   }
 
   if (profileLoading) {
     return <LoadingSpinner fullPage text={t("loading")} />;
+  }
+
+  if (profileError) {
+    return (
+      <div
+        className="max-w-lg mx-auto px-4 py-20 flex flex-col items-center gap-6"
+        data-ocid="account.profile_error_state"
+      >
+        <div className="w-20 h-20 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center">
+          <AlertTriangle size={32} className="text-destructive/60" />
+        </div>
+        <div className="text-center space-y-2">
+          <h2 className="text-lg font-display font-bold">
+            {lang === "bn" ? "তথ্য লোড হয়নি" : "Failed to load profile"}
+          </h2>
+          <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+            {lang === "bn"
+              ? "নেটওয়ার্ক সমস্যা হয়েছে। আবার চেষ্টা করুন।"
+              : "There was a network issue. Please try again."}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void refetchProfile()}
+          data-ocid="account.retry_button"
+          className="cta-primary flex items-center gap-2 px-6 py-2.5 text-sm"
+        >
+          {lang === "bn" ? "আবার চেষ্টা করুন" : "Retry"}
+        </button>
+      </div>
+    );
   }
 
   return (

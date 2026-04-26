@@ -22,6 +22,20 @@ mixin (
   rateLimitMap : Map.Map<Text, Common.RateLimitEntry>,
   orderIdempotencyKeys : Map.Map<Text, Common.IdempotencyEntry>,
 ) {
+  // ── Health check ─────────────────────────────────────────────────────────
+
+  /// Lightweight liveness probe — returns true when the canister is reachable.
+  /// Frontend should call this before initiating login to verify backend connectivity.
+  public query func ping() : async Bool { true };
+
+  // ── Caller principal helper ───────────────────────────────────────────────
+
+  /// Returns the caller's principal as Text for debugging auth state.
+  /// Useful for verifying that the user's identity is properly propagated.
+  public query ({ caller }) func getCallerPrincipal() : async Text {
+    caller.toText()
+  };
+
   public query ({ caller }) func getCallerUserProfile() : async ?UserTypes.UserProfile {
     UserLib.getProfile(profiles, caller);
   };
