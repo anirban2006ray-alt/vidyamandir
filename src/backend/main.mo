@@ -83,7 +83,16 @@ actor {
 
   // --- User profiles state ---
   let profiles = Map.empty<Common.UserId, UserTypes.UserProfile>();
-  include UserMixin(accessControlState, profiles, orders, products, analyticsCache, analyticsEvents);
+
+  // --- Login rate-limit state (separate from enquiry rate limit) ---
+  // Key: principalText. Max 5 attempts per 60-second window (nanosecond timestamps).
+  let loginRateLimits = Map.empty<Text, UserTypes.LoginRateLimitEntry>();
+
+  // --- Last-login tracking (fire-and-forget post-login analytics) ---
+  // Key: UserId (Principal). Value: nanosecond timestamp of last successful login.
+  let lastLoginMap = Map.empty<Common.UserId, Int>();
+
+  include UserMixin(accessControlState, profiles, orders, products, analyticsCache, analyticsEvents, loginRateLimits, lastLoginMap, rateLimitMap, orderIdempotencyKeys);
 
   // --- Enquiry state ---
   let enquiries = Map.empty<Text, EnquiryTypes.Enquiry>();

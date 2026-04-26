@@ -7,21 +7,179 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export type FlashSaleId = bigint;
-export interface Answer {
-    id: AnswerId;
-    createdAt: Timestamp;
-    questionId: QuestionId;
-    helpfulVotes: bigint;
-    answerText: string;
-    answeredBy: UserId;
-}
-export type Timestamp = bigint;
 export interface TransformationOutput {
     status: bigint;
     body: Uint8Array;
     headers: Array<http_header>;
 }
+export interface StatusUpdate {
+    status: OrderStatus;
+    note: string;
+    updatedAt: Timestamp;
+}
+export interface AdminAnalytics {
+    totalProducts: bigint;
+    totalOrders: bigint;
+    recentRevenueInPaisa: bigint;
+    recentOrderCount: bigint;
+    bestsellers: Array<[ProductId, bigint]>;
+    totalUsers: bigint;
+    totalRevenueInPaisa: bigint;
+}
+export interface CreateOrderInput {
+    idempotencyKey?: string;
+    shippingAddressId: AddressId;
+    promoCode?: string;
+    stripePaymentIntentId: string;
+    items: Array<OrderItem>;
+}
+export type StripeSessionStatus = {
+    __kind__: "completed";
+    completed: {
+        userPrincipal?: string;
+        response: string;
+    };
+} | {
+    __kind__: "failed";
+    failed: {
+        error: string;
+    };
+};
+export interface StripeConfiguration {
+    allowedCountries: Array<string>;
+    secretKey: string;
+}
+export interface OrderedQuantityItem {
+    totalOrdered: bigint;
+    productTitle: string;
+    productId: ProductId;
+    totalRevenue: bigint;
+}
+export interface AnalyticsEvent {
+    userId: string;
+    productId?: ProductId;
+    orderId?: OrderId;
+    timestamp: Timestamp;
+    amount?: bigint;
+    eventType: string;
+}
+export interface CallerLoginStatus {
+    lastLoginAt?: bigint;
+    isLoggedIn: boolean;
+    loginAttempts: bigint;
+    isRateLimited: boolean;
+}
+export interface Enquiry {
+    id: string;
+    status: EnquiryStatus;
+    aiReply: string;
+    enquiryType: string;
+    name: string;
+    submittedAt: Timestamp;
+    email: string;
+    message: string;
+    phone: string;
+}
+export interface Order {
+    id: OrderId;
+    totalInPaisa: bigint;
+    status: OrderStatus;
+    idempotencyKey: string;
+    userId: UserId;
+    discountInPaisa: bigint;
+    promoCodeApplied?: string;
+    createdAt: Timestamp;
+    estimatedDeliveryDate?: Timestamp;
+    courierNote?: string;
+    statusHistory: Array<StatusUpdate>;
+    updatedAt: Timestamp;
+    shippingAddress: Address;
+    stripePaymentIntentId: string;
+    items: Array<OrderItem>;
+}
+export interface http_header {
+    value: string;
+    name: string;
+}
+export interface http_request_result {
+    status: bigint;
+    body: Uint8Array;
+    headers: Array<http_header>;
+}
+export interface CreateProductInput {
+    coverImageUrl: string;
+    info: ProductLabel;
+    isbn: string;
+    publisher: string;
+    priceInPaisa: bigint;
+    language: Language;
+    stockCount: bigint;
+    genre: Genre;
+    publicationDate: Timestamp;
+}
+export type UserId = Principal;
+export interface PromoCodeUpdateRequest {
+    maxUsageCount?: bigint;
+    discountPercent?: bigint;
+    isActive?: boolean;
+    minSpendInPaisa?: bigint;
+    validUntil?: Timestamp;
+}
+export interface ShoppingItem {
+    productName: string;
+    currency: string;
+    quantity: bigint;
+    priceInCents: bigint;
+    productDescription: string;
+}
+export interface FlashSaleItem {
+    discountedPriceInPaisa: bigint;
+    discountPercent: bigint;
+    productId: ProductId;
+    quantityLimit?: bigint;
+    originalPriceInPaisa: bigint;
+    soldCount: bigint;
+}
+export interface CreateFlashSaleInput {
+    startTime: Timestamp;
+    endTime: Timestamp;
+    items: Array<FlashSaleItem>;
+    titleBn: string;
+    titleEn: string;
+}
+export interface PagedResult_1 {
+    hasMore: boolean;
+    totalCount: bigint;
+    items: Array<Enquiry>;
+}
+export interface CartItem {
+    productId: ProductId;
+    priceSnapshotInPaisa: bigint;
+    addedAt: Timestamp;
+    quantity: bigint;
+}
+export interface UserProfile {
+    preferredLanguage: Variant_bengali_english;
+    name: string;
+    createdAt: Timestamp;
+    email: string;
+    phone: string;
+}
+export interface Address {
+    id: AddressId;
+    city: string;
+    userId: UserId;
+    createdAt: Timestamp;
+    fullName: string;
+    line1: string;
+    line2: string;
+    district: string;
+    state: string;
+    isDefault: boolean;
+    phone: string;
+    pincode: string;
+}
+export type Timestamp = bigint;
 export interface PromoCode {
     id: PromoCodeId;
     validFrom: Timestamp;
@@ -38,20 +196,6 @@ export interface PagedResult {
     hasMore: boolean;
     totalCount: bigint;
     items: Array<AdminReviewView>;
-}
-export interface Address {
-    id: AddressId;
-    city: string;
-    userId: UserId;
-    createdAt: Timestamp;
-    fullName: string;
-    line1: string;
-    line2: string;
-    district: string;
-    state: string;
-    isDefault: boolean;
-    phone: string;
-    pincode: string;
 }
 export interface OrderItem {
     priceInPaisa: bigint;
@@ -103,10 +247,15 @@ export type AppError = {
     alreadyReviewed: null;
 };
 export type PromoCodeId = bigint;
-export interface StatusUpdate {
-    status: OrderStatus;
-    note: string;
-    updatedAt: Timestamp;
+export interface AddressInput {
+    city: string;
+    fullName: string;
+    line1: string;
+    line2: string;
+    district: string;
+    state: string;
+    phone: string;
+    pincode: string;
 }
 export interface ProductLabel {
     descriptionBn: string;
@@ -128,52 +277,10 @@ export interface UpdateProductInput {
     genre?: Genre;
     publicationDate?: Timestamp;
 }
-export interface AdminAnalytics {
-    totalProducts: bigint;
-    totalOrders: bigint;
-    recentRevenueInPaisa: bigint;
-    recentOrderCount: bigint;
-    bestsellers: Array<[ProductId, bigint]>;
-    totalUsers: bigint;
-    totalRevenueInPaisa: bigint;
-}
-export interface AddressInput {
-    city: string;
-    fullName: string;
-    line1: string;
-    line2: string;
-    district: string;
-    state: string;
-    phone: string;
-    pincode: string;
-}
 export type AddressId = bigint;
 export interface TransformationInput {
     context: Uint8Array;
     response: http_request_result;
-}
-export interface CreateOrderInput {
-    idempotencyKey?: string;
-    shippingAddressId: AddressId;
-    promoCode?: string;
-    stripePaymentIntentId: string;
-    items: Array<OrderItem>;
-}
-export type StripeSessionStatus = {
-    __kind__: "completed";
-    completed: {
-        userPrincipal?: string;
-        response: string;
-    };
-} | {
-    __kind__: "failed";
-    failed: {
-        error: string;
-    };
-};
-export interface StripeConfiguration {
-    allowedCountries: Array<string>;
-    secretKey: string;
 }
 export type ReviewId = bigint;
 export interface CreateReviewInput {
@@ -192,20 +299,6 @@ export interface Review {
     rating: bigint;
     helpfulVotes: bigint;
     titleEn: string;
-}
-export interface OrderedQuantityItem {
-    totalOrdered: bigint;
-    productTitle: string;
-    productId: ProductId;
-    totalRevenue: bigint;
-}
-export interface AnalyticsEvent {
-    userId: string;
-    productId?: ProductId;
-    orderId?: OrderId;
-    timestamp: Timestamp;
-    amount?: bigint;
-    eventType: string;
 }
 export interface FlashSaleView {
     id: FlashSaleId;
@@ -230,43 +323,6 @@ export interface AdminReviewView {
     helpfulVotes: bigint;
     titleEn: string;
 }
-export interface Enquiry {
-    id: string;
-    status: EnquiryStatus;
-    aiReply: string;
-    enquiryType: string;
-    name: string;
-    submittedAt: Timestamp;
-    email: string;
-    message: string;
-    phone: string;
-}
-export interface Order {
-    id: OrderId;
-    totalInPaisa: bigint;
-    status: OrderStatus;
-    idempotencyKey: string;
-    userId: UserId;
-    discountInPaisa: bigint;
-    promoCodeApplied?: string;
-    createdAt: Timestamp;
-    estimatedDeliveryDate?: Timestamp;
-    courierNote?: string;
-    statusHistory: Array<StatusUpdate>;
-    updatedAt: Timestamp;
-    shippingAddress: Address;
-    stripePaymentIntentId: string;
-    items: Array<OrderItem>;
-}
-export interface http_header {
-    value: string;
-    name: string;
-}
-export interface http_request_result {
-    status: bigint;
-    body: Uint8Array;
-    headers: Array<http_header>;
-}
 export interface ProductFilter {
     minRating?: number;
     inStockOnly: boolean;
@@ -276,21 +332,7 @@ export interface ProductFilter {
     searchQuery?: string;
     maxPriceInPaisa?: bigint;
 }
-export type UserId = Principal;
-export interface PromoCodeUpdateRequest {
-    maxUsageCount?: bigint;
-    discountPercent?: bigint;
-    isActive?: boolean;
-    minSpendInPaisa?: bigint;
-    validUntil?: Timestamp;
-}
-export interface ShoppingItem {
-    productName: string;
-    currency: string;
-    quantity: bigint;
-    priceInCents: bigint;
-    productDescription: string;
-}
+export type AnswerId = bigint;
 export interface ProductView {
     id: ProductId;
     coverImageUrl: string;
@@ -306,40 +348,17 @@ export interface ProductView {
     publicationDate: Timestamp;
     reviewCount: bigint;
 }
-export interface FlashSaleItem {
-    discountedPriceInPaisa: bigint;
-    discountPercent: bigint;
-    productId: ProductId;
-    quantityLimit?: bigint;
-    originalPriceInPaisa: bigint;
-    soldCount: bigint;
-}
-export interface CreateProductInput {
-    coverImageUrl: string;
-    info: ProductLabel;
-    isbn: string;
-    publisher: string;
-    priceInPaisa: bigint;
-    language: Language;
-    stockCount: bigint;
-    genre: Genre;
-    publicationDate: Timestamp;
-}
 export interface ProductSort {
     field: SortField;
     order: SortOrder;
 }
-export interface PagedResult_1 {
-    hasMore: boolean;
-    totalCount: bigint;
-    items: Array<Enquiry>;
-}
-export interface CreateFlashSaleInput {
-    startTime: Timestamp;
-    endTime: Timestamp;
-    items: Array<FlashSaleItem>;
-    titleBn: string;
-    titleEn: string;
+export interface Answer {
+    id: AnswerId;
+    createdAt: Timestamp;
+    questionId: QuestionId;
+    helpfulVotes: bigint;
+    answerText: string;
+    answeredBy: UserId;
 }
 export type ProductId = bigint;
 export interface Question {
@@ -349,21 +368,8 @@ export interface Question {
     questionText: string;
     askedBy: UserId;
 }
-export interface CartItem {
-    productId: ProductId;
-    priceSnapshotInPaisa: bigint;
-    addedAt: Timestamp;
-    quantity: bigint;
-}
-export type AnswerId = bigint;
-export interface UserProfile {
-    preferredLanguage: Variant_bengali_english;
-    name: string;
-    createdAt: Timestamp;
-    email: string;
-    phone: string;
-}
 export type OrderId = bigint;
+export type FlashSaleId = bigint;
 export enum EnquiryStatus {
     new_ = "new",
     replied = "replied",
@@ -509,6 +515,7 @@ export interface backendInterface {
     downloadInvoice(orderId: OrderId): Promise<string>;
     getAdminAnalytics(): Promise<AdminAnalytics>;
     getAnalyticsEvents(offset: bigint, limit: bigint): Promise<Array<AnalyticsEvent>>;
+    getCallerLoginStatus(): Promise<CallerLoginStatus>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getCart(): Promise<Array<CartItem>>;
@@ -549,6 +556,11 @@ export interface backendInterface {
     } | {
         __kind__: "err";
         err: AppError;
+    }>;
+    pruneStaleRateLimits(): Promise<{
+        enquiryRateLimitsPruned: bigint;
+        loginRateLimitsPruned: bigint;
+        idempotencyKeysPruned: bigint;
     }>;
     recordDownload(platform: string): Promise<void>;
     recordRecentlyViewed(productId: ProductId): Promise<void>;

@@ -84,3 +84,32 @@ export function useUserRole() {
     retry: false,
   });
 }
+
+export interface LoginStatus {
+  isLoggedIn: boolean;
+  lastLoginAt?: bigint;
+  loginAttempts: bigint;
+  isRateLimited: boolean;
+}
+
+export function useCallerLoginStatus() {
+  const { actor, isFetching: actorFetching } = useActor(createActor);
+  const { isAuthenticated } = useInternetIdentity();
+
+  return useQuery<LoginStatus | null>({
+    queryKey: ["callerLoginStatus"],
+    queryFn: async () => {
+      if (!actor) return null;
+      // getCallerLoginStatus may not yet be in generated bindings — call dynamically
+      const actorWithStatus = actor as typeof actor & {
+        getCallerLoginStatus: () => Promise<LoginStatus>;
+      };
+      if (typeof actorWithStatus.getCallerLoginStatus !== "function") {
+        return null;
+      }
+      return actorWithStatus.getCallerLoginStatus();
+    },
+    enabled: !!actor && !actorFetching && isAuthenticated,
+    retry: false,
+  });
+}

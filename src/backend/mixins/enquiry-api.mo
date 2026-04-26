@@ -169,22 +169,28 @@ mixin (
     };
   };
 
-  /// Default thank-you fallback used when OpenAI is unavailable.
+  /// Default bilingual thank-you fallback used when OpenAI is unavailable.
   let DEFAULT_THANK_YOU : Text =
     "Thank you for contacting Vidyamandir! We have received your enquiry and will get back to you within 24 hours. " #
-    "Our team is happy to help. Visit us at Balgona, GT Road, Purba Bardhaman.";
+    "Our team is happy to help. Visit us at Balgona, GT Road, Purba Bardhaman. / " #
+    "ভিদ্যামন্দিরে যোগাযোগ করার জন্য ধন্যবাদ! আমরা আপনার অনুসন্ধান পেয়েছি এবং ২৪ ঘণ্টার মধ্যে আপনার সাথে যোগাযোগ করব। " #
+    "আমাদের দল সাহায্য করতে প্রস্তুত। বালগোনা, জিটি রোড, পূর্ব বর্ধমানে আমাদের পরিদর্শন করুন।";
 
-  /// Call OpenAI and return an AI-generated reply, or DEFAULT_THANK_YOU on failure.
+  /// Call OpenAI and return an AI-generated bilingual (English+Bengali) reply, or DEFAULT_THANK_YOU on failure.
   func fetchAiReply(userMessage : Text) : async Text {
     let systemPrompt =
       "You are the AI assistant for Vidyamandir, a Bengali bookshop located at Balgona, GT Road, " #
       "Purba Bardhaman, West Bengal, India (PIN 713125). Phone: 9475727810. " #
       "Email: anirbanray030000@gmail.com. " #
       "You help customers with questions about books, prices, orders, shipping, returns, and the shop. " #
-      "Respond in the language the customer uses (English or Bengali). " #
-      "Be friendly, helpful, and concise. Start every response with 'Thank you for contacting Vidyamandir!' " #
+      "IMPORTANT: Always respond in BOTH English AND Bengali. First give the complete answer in English, " #
+      "then add a separator ' / ' and give the same answer in Bengali. " #
+      "Example format: 'Thank you for your question about our books! [English answer here] / " #
+      "আপনার প্রশ্নের জন্য ধন্যবাদ! [Bengali answer here]' " #
+      "Start every response with 'Thank you for contacting Vidyamandir!' in English, followed by the Bengali equivalent. " #
+      "Be friendly, helpful, and concise. " #
       "If you don't know specific pricing, suggest the customer visit the website or contact the store directly. " #
-      "End with 'We hope to see you soon!'";
+      "End with 'We hope to see you soon! / আমরা আপনাকে শীঘ্রই দেখার অপেক্ষায় আছি!'";
 
     let openAiPayload =
       "{\"model\":\"gpt-3.5-turbo\",\"messages\":[" #
@@ -215,6 +221,7 @@ mixin (
   /// Submit a new enquiry — open to anyone, no auth required.
   /// Validates all fields server-side. Rate limited: max 5 per caller per hour.
   /// Fires AI reply to user email + SMS; fires store notification email.
+  /// Returns the enquiry ID and AI-generated bilingual reply so the frontend can display it immediately.
   public shared ({ caller }) func submitEnquiry(
     name : Text,
     email : Text,
@@ -229,19 +236,19 @@ mixin (
       case (#ok(enquiry)) {
         nextEnquiryId[0] += 1;
 
-        // Generate AI reply (warm, thank-you response) — fallback to default if OpenAI fails
+        // Generate AI bilingual reply (English+Bengali) — fallback to default if OpenAI fails
         let aiReply = await fetchAiReply(enquiry.message);
 
-        // Persist the AI reply back into the stored enquiry
+        // Persist the AI reply + mark as replied in one atomic update
         ignore EnquiryLib.updateEnquiryAiReply(enquiries, enquiry.id, aiReply);
 
         // Fire-and-forget: notify store owner via email
         ignore Notifications.sendEnquiryNotification(enquiry, transform);
 
-        // Fire-and-forget: send AI reply to user's email
+        // Fire-and-forget: send AI reply to user's own email
         ignore Notifications.sendChatReplyToUser(enquiry.name, enquiry.email, enquiry.message, aiReply, transform);
 
-        // Fire-and-forget: send AI reply SMS to user's phone (if provided)
+        // Fire-and-forget: send AI reply SMS to user's own phone (if provided)
         if (enquiry.phone.size() > 0) {
           ignore Notifications.sendChatSmsToUser(enquiry.phone, aiReply, transform);
         };
@@ -292,7 +299,7 @@ mixin (
     // Get AI reply
     let aiReply = await fetchAiReply(trimQuestion);
 
-    // Store as chat enquiry
+    // Store as chat enquiry — already has AI reply, status is replied immediately
     let enquiryId = "ENQ-" # nextEnquiryId[0].toText();
     let enquiry : EnquiryTypes.Enquiry = {
       id = enquiryId;
@@ -301,7 +308,7 @@ mixin (
       phone = trimPhone;
       message = "CHAT: " # trimQuestion;
       submittedAt = Time.now();
-      status = #new_;
+      status = #replied;
       enquiryType = "chat";
       aiReply;
     };

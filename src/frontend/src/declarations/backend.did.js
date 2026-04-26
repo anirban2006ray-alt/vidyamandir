@@ -142,6 +142,12 @@ export const AnalyticsEvent = IDL.Record({
   'amount' : IDL.Opt(IDL.Nat),
   'eventType' : IDL.Text,
 });
+export const CallerLoginStatus = IDL.Record({
+  'lastLoginAt' : IDL.Opt(IDL.Int),
+  'isLoggedIn' : IDL.Bool,
+  'loginAttempts' : IDL.Nat,
+  'isRateLimited' : IDL.Bool,
+});
 export const UserProfile = IDL.Record({
   'preferredLanguage' : IDL.Variant({
     'bengali' : IDL.Null,
@@ -457,6 +463,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(AnalyticsEvent)],
       ['query'],
     ),
+  'getCallerLoginStatus' : IDL.Func([], [CallerLoginStatus], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getCart' : IDL.Func([], [IDL.Vec(CartItem)], ['query']),
@@ -525,6 +532,17 @@ export const idlService = IDL.Service({
   'postAnswer' : IDL.Func(
       [QuestionId, IDL.Text],
       [IDL.Variant({ 'ok' : AnswerId, 'err' : AppError })],
+      [],
+    ),
+  'pruneStaleRateLimits' : IDL.Func(
+      [],
+      [
+        IDL.Record({
+          'enquiryRateLimitsPruned' : IDL.Nat,
+          'loginRateLimitsPruned' : IDL.Nat,
+          'idempotencyKeysPruned' : IDL.Nat,
+        }),
+      ],
       [],
     ),
   'recordDownload' : IDL.Func([IDL.Text], [], []),
@@ -744,6 +762,12 @@ export const idlFactory = ({ IDL }) => {
     'timestamp' : Timestamp,
     'amount' : IDL.Opt(IDL.Nat),
     'eventType' : IDL.Text,
+  });
+  const CallerLoginStatus = IDL.Record({
+    'lastLoginAt' : IDL.Opt(IDL.Int),
+    'isLoggedIn' : IDL.Bool,
+    'loginAttempts' : IDL.Nat,
+    'isRateLimited' : IDL.Bool,
   });
   const UserProfile = IDL.Record({
     'preferredLanguage' : IDL.Variant({
@@ -1054,6 +1078,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(AnalyticsEvent)],
         ['query'],
       ),
+    'getCallerLoginStatus' : IDL.Func([], [CallerLoginStatus], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getCart' : IDL.Func([], [IDL.Vec(CartItem)], ['query']),
@@ -1130,6 +1155,17 @@ export const idlFactory = ({ IDL }) => {
     'postAnswer' : IDL.Func(
         [QuestionId, IDL.Text],
         [IDL.Variant({ 'ok' : AnswerId, 'err' : AppError })],
+        [],
+      ),
+    'pruneStaleRateLimits' : IDL.Func(
+        [],
+        [
+          IDL.Record({
+            'enquiryRateLimitsPruned' : IDL.Nat,
+            'loginRateLimitsPruned' : IDL.Nat,
+            'idempotencyKeysPruned' : IDL.Nat,
+          }),
+        ],
         [],
       ),
     'recordDownload' : IDL.Func([IDL.Text], [], []),

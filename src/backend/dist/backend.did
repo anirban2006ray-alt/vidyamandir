@@ -331,6 +331,13 @@ type CartItem =
    productId: ProductId;
    quantity: nat;
  };
+type CallerLoginStatus = 
+ record {
+   isLoggedIn: bool;
+   isRateLimited: bool;
+   lastLoginAt: opt int;
+   loginAttempts: nat;
+ };
 type AppError = 
  variant {
    alreadyExists;
@@ -489,6 +496,7 @@ service : {
   downloadInvoice: (orderId: OrderId) -> (text) query;
   getAdminAnalytics: () -> (AdminAnalytics);
   getAnalyticsEvents: (offset: nat, limit: nat) -> (vec AnalyticsEvent) query;
+  getCallerLoginStatus: () -> (CallerLoginStatus) query;
   getCallerUserProfile: () -> (opt UserProfile) query;
   getCallerUserRole: () -> (UserRole) query;
   getCart: () -> (vec CartItem) query;
@@ -537,6 +545,12 @@ service : {
    (variant {
       err: AppError;
       ok: AnswerId;
+    });
+  pruneStaleRateLimits: () ->
+   (record {
+      enquiryRateLimitsPruned: nat;
+      idempotencyKeysPruned: nat;
+      loginRateLimitsPruned: nat;
     });
   recordDownload: (platform: text) -> ();
   recordRecentlyViewed: (productId: ProductId) -> ();

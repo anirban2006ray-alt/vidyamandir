@@ -17,6 +17,10 @@ mixin (
   products : Map.Map<Common.ProductId, CatalogTypes.Product>,
   analyticsCache : [var ?UserTypes.AnalyticsCacheEntry],
   analyticsEvents : List.List<UserTypes.AnalyticsEvent>,
+  loginRateLimits : Map.Map<Text, UserTypes.LoginRateLimitEntry>,
+  lastLoginMap : Map.Map<Common.UserId, Int>,
+  rateLimitMap : Map.Map<Text, Common.RateLimitEntry>,
+  orderIdempotencyKeys : Map.Map<Text, Common.IdempotencyEntry>,
 ) {
   public query ({ caller }) func getCallerUserProfile() : async ?UserTypes.UserProfile {
     UserLib.getProfile(profiles, caller);
@@ -93,5 +97,34 @@ mixin (
     };
     let rawProducts = UserLib.getTopProducts(bestsellers, products, limit);
     rawProducts.map<CatalogTypes.Product, CatalogTypes.ProductView>(CatalogLib.toView);
+  };
+
+  // ── Login status query ────────────────────────────────────────────────────
+
+  /// Returns login state for the caller: isLoggedIn, lastLoginAt, current rate-limit window.
+  /// O(1) — pure map lookups. Safe to call on every page load.
+  public query ({ caller }) func getCallerLoginStatus() : async UserTypes.CallerLoginStatus {
+    let now = Time.now();
+    UserLib.buildCallerLoginStatus(loginRateLimits, lastLoginMap, caller, now);
+  };
+
+  // ── Stale-entry pruning (admin) ────────────────────────────────────────────
+
+  /// Prune all stale rate-limit entries and expired idempotency keys.
+  /// Prevents unbounded HashMap growth at 10M+ users.
+  /// Admin-only. Returns counts of pruned entries per category.
+  public shared ({ caller }) func pruneStaleRateLimits() : async {
+    loginRateLimitsPruned : Nat;
+    enquiryRateLimitsPruned : Nat;
+    idempotencyKeysPruned : Nat;
+  } {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: only admins can prune stale entries");
+    };
+    let now = Time.now();
+    let l = UserLib.pruneLoginRateLimits(loginRateLimits, now);
+    let e = UserLib.pruneEnquiryRateLimits(rateLimitMap, now);
+    let i = UserLib.pruneIdempotencyKeys(orderIdempotencyKeys, now);
+    { loginRateLimitsPruned = l; enquiryRateLimitsPruned = e; idempotencyKeysPruned = i };
   };
 };

@@ -87,6 +87,12 @@ export type AppError = { 'rateLimitExceeded' : null } |
   { 'unauthorized' : null } |
   { 'insufficientStock' : null } |
   { 'alreadyReviewed' : null };
+export interface CallerLoginStatus {
+  'lastLoginAt' : [] | [bigint],
+  'isLoggedIn' : boolean,
+  'loginAttempts' : bigint,
+  'isRateLimited' : boolean,
+}
 export interface CartItem {
   'productId' : ProductId,
   'priceSnapshotInPaisa' : bigint,
@@ -429,6 +435,7 @@ export interface _SERVICE {
   'downloadInvoice' : ActorMethod<[OrderId], string>,
   'getAdminAnalytics' : ActorMethod<[], AdminAnalytics>,
   'getAnalyticsEvents' : ActorMethod<[bigint, bigint], Array<AnalyticsEvent>>,
+  'getCallerLoginStatus' : ActorMethod<[], CallerLoginStatus>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getCart' : ActorMethod<[], Array<CartItem>>,
@@ -481,6 +488,14 @@ export interface _SERVICE {
     [QuestionId, string],
     { 'ok' : AnswerId } |
       { 'err' : AppError }
+  >,
+  'pruneStaleRateLimits' : ActorMethod<
+    [],
+    {
+      'enquiryRateLimitsPruned' : bigint,
+      'loginRateLimitsPruned' : bigint,
+      'idempotencyKeysPruned' : bigint,
+    }
   >,
   'recordDownload' : ActorMethod<[string], undefined>,
   'recordRecentlyViewed' : ActorMethod<[ProductId], undefined>,

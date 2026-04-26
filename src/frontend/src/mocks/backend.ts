@@ -420,4 +420,15 @@ export const mockBackend: backendInterface = {
   voteReviewHelpful: async () => ({ __kind__: "ok" as const, ok: true }),
   recordDownload: async () => undefined,
   getDownloadStats: async () => [],
+  getCallerLoginStatus: async () => ({
+    isLoggedIn: true,
+    lastLoginAt: undefined,
+    loginAttempts: BigInt(0),
+    isRateLimited: false,
+  }),
+  pruneStaleRateLimits: async () => ({
+    enquiryRateLimitsPruned: BigInt(0),
+    loginRateLimitsPruned: BigInt(0),
+    idempotencyKeysPruned: BigInt(0),
+  }),
 };

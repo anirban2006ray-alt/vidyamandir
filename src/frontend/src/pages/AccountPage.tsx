@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   BookOpen,
   CheckCircle2,
   ChevronRight,
@@ -43,7 +44,11 @@ import type {
 } from "../backend.d.ts";
 import { ThankYouImage } from "../components/FloatingEnquiry";
 import { LoadingSpinner } from "../components/LoadingSpinner";
-import { useAuth, useUserProfile } from "../hooks/use-auth";
+import {
+  useAuth,
+  useCallerLoginStatus,
+  useUserProfile,
+} from "../hooks/use-auth";
 import { useLanguage } from "../hooks/use-language";
 import {
   useAddAddress,
@@ -109,7 +114,13 @@ const EMPTY_ADDRESS: AddressInput = {
 
 // ─── Auth Gate ────────────────────────────────────────────────────────────────
 
-function AuthGate({ onLogin }: { onLogin: () => void }) {
+function AuthGate({
+  onLogin,
+  isRateLimited,
+}: {
+  onLogin: () => void;
+  isRateLimited?: boolean;
+}) {
   const { t } = useLanguage();
   return (
     <div
@@ -130,15 +141,33 @@ function AuthGate({ onLogin }: { onLogin: () => void }) {
           {t("signInDesc")}
         </p>
       </div>
-      <button
-        type="button"
-        onClick={onLogin}
-        data-ocid="account.login_button"
-        className="cta-primary flex items-center gap-2 px-8 py-3"
-      >
-        <LogIn size={16} />
-        {t("login")}
-      </button>
+
+      {isRateLimited ? (
+        <div
+          className="flex items-start gap-3 rounded-xl border border-accent/40 bg-accent/10 px-5 py-4 max-w-xs text-left"
+          data-ocid="account.rate_limit_warning"
+          role="alert"
+        >
+          <AlertTriangle
+            size={18}
+            className="shrink-0 mt-0.5 text-accent"
+            aria-hidden="true"
+          />
+          <p className="text-sm font-medium text-accent leading-snug">
+            Too many login attempts. Please wait 60 seconds and try again.
+          </p>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onLogin}
+          data-ocid="account.login_button"
+          className="cta-primary flex items-center gap-2 px-8 py-3"
+        >
+          <LogIn size={16} />
+          {t("login")}
+        </button>
+      )}
     </div>
   );
 }
@@ -163,6 +192,7 @@ function ProfileSection({ profile }: { profile: UserProfile | null }) {
   const { t, lang, setLang } = useLanguage();
   const { logout } = useAuth();
   const { mutate: saveProfile, isPending: saving } = useSaveUserProfile();
+  const { data: loginStatus } = useCallerLoginStatus();
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<{
@@ -294,6 +324,23 @@ function ProfileSection({ profile }: { profile: UserProfile | null }) {
               {profile?.email ||
                 (lang === "bn" ? "ইমেইল সেট নেই" : "No email set")}
             </p>
+            {loginStatus?.lastLoginAt != null && (
+              <p
+                className="text-xs text-muted-foreground mt-1"
+                data-ocid="account.last_login"
+              >
+                {lang === "bn" ? "শেষ লগইন: " : "Last login: "}
+                {new Date(
+                  Number(loginStatus.lastLoginAt / BigInt(1_000_000)),
+                ).toLocaleString(lang === "bn" ? "bn-IN" : "en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            )}
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               <Badge className="badge-sale text-[10px] py-0.5">
                 {lang === "bn" ? "সক্রিয় সদস্য" : "Active Member"}
@@ -1280,9 +1327,15 @@ export default function AccountPage() {
   const { t, lang } = useLanguage();
   const { isAuthenticated, login } = useAuth();
   const { data: profile, isLoading: profileLoading } = useUserProfile();
+  const { data: loginStatus } = useCallerLoginStatus();
 
   if (!isAuthenticated) {
-    return <AuthGate onLogin={login} />;
+    return (
+      <AuthGate
+        onLogin={login}
+        isRateLimited={loginStatus?.isRateLimited ?? false}
+      />
+    );
   }
 
   if (profileLoading) {

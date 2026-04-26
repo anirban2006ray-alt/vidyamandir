@@ -6,12 +6,172 @@ import OrderTypes "../types/order";
 import CatalogTypes "../types/catalog";
 
 module {
+  // ── Login rate-limit constants ─────────────────────────────────────────────
+  /// 60-second window in nanoseconds
+  let LOGIN_WINDOW_NS : Int = 60_000_000_000;
+  /// Maximum login attempts per window before rate-limiting
+  let LOGIN_MAX_ATTEMPTS : Nat = 5;
+  /// Stale threshold: entries older than 2× window are pruned
+  let LOGIN_STALE_NS : Int = 120_000_000_000;
+
+  // ── Enquiry rate-limit constants (for pruning) ─────────────────────────────
+  /// Enquiry window = 3600 seconds; stale = 2× = 7200 seconds
+  let ENQUIRY_STALE_NS : Int = 7_200_000_000_000;
+
+  // ── Idempotency constants (for pruning) ───────────────────────────────────
+  /// 24 hours in nanoseconds
+  let IDEMPOTENCY_TTL_NS : Int = 86_400_000_000_000;
+
   // ── Max analytics event ring-buffer capacity ───────────────────────────────
   let MAX_EVENTS : Nat = 10_000;
 
   // ── 5-minute cache TTL: 300,000,000,000 nanoseconds ───────────────────────
   // Computed as: 5 * 60 * 1_000_000_000 = 300_000_000_000
   let CACHE_TTL_NS : Int = 300_000_000_000;
+
+  // ── Login rate-limiting ────────────────────────────────────────────────────
+
+  /// Check and increment the login attempt counter for a principal.
+  /// Returns #ok if under the limit, #err(#rateLimitExceeded) if blocked.
+  /// Must be called BEFORE any auth logic so failed attempts are counted.
+  public func checkLoginRateLimit(
+    loginRateLimits : Map.Map<Text, UserTypes.LoginRateLimitEntry>,
+    principalText : Text,
+    now : Int,
+  ) : { #ok; #err : Common.AppError } {
+    let key = principalText;
+    let existing = loginRateLimits.get(key);
+    switch (existing) {
+      case (?entry) {
+        if (now - entry.windowStart < LOGIN_WINDOW_NS) {
+          // Still within the current window
+          if (entry.count >= LOGIN_MAX_ATTEMPTS) {
+            return #err(#rateLimitExceeded);
+          };
+          loginRateLimits.add(key, { count = entry.count + 1; windowStart = entry.windowStart });
+          #ok;
+        } else {
+          // Window expired — start a fresh window
+          loginRateLimits.add(key, { count = 1; windowStart = now });
+          #ok;
+        };
+      };
+      case null {
+        // First attempt from this principal
+        loginRateLimits.add(key, { count = 1; windowStart = now });
+        #ok;
+      };
+    };
+  };
+
+  /// Read-only view of login rate limit state for getCallerLoginStatus.
+  public func getLoginRateLimitState(
+    loginRateLimits : Map.Map<Text, UserTypes.LoginRateLimitEntry>,
+    principalText : Text,
+    now : Int,
+  ) : { attempts : Nat; isRateLimited : Bool } {
+    switch (loginRateLimits.get(principalText)) {
+      case (?entry) {
+        if (now - entry.windowStart < LOGIN_WINDOW_NS) {
+          { attempts = entry.count; isRateLimited = entry.count >= LOGIN_MAX_ATTEMPTS };
+        } else {
+          { attempts = 0; isRateLimited = false };
+        };
+      };
+      case null { { attempts = 0; isRateLimited = false } };
+    };
+  };
+
+  // ── Session / last-login tracking ─────────────────────────────────────────
+
+  /// Record a successful login event: update lastLoginMap and append analytics event.
+  /// Call this AFTER returning the success response (fire-and-forget pattern).
+  public func recordLoginEvent(
+    lastLoginMap : Map.Map<Common.UserId, Int>,
+    analyticsEvents : List.List<UserTypes.AnalyticsEvent>,
+    userId : Common.UserId,
+    now : Int,
+  ) {
+    lastLoginMap.add(userId, now);
+    recordEvent(analyticsEvents, {
+      eventType = "user_login";
+      userId = userId.toText();
+      productId = null;
+      orderId = null;
+      amount = null;
+      timestamp = now;
+    });
+  };
+
+  /// Build CallerLoginStatus for the getCallerLoginStatus query.
+  public func buildCallerLoginStatus(
+    loginRateLimits : Map.Map<Text, UserTypes.LoginRateLimitEntry>,
+    lastLoginMap : Map.Map<Common.UserId, Int>,
+    caller : Common.UserId,
+    now : Int,
+  ) : UserTypes.CallerLoginStatus {
+    let isLoggedIn = not caller.isAnonymous();
+    let lastLoginAt = if (isLoggedIn) lastLoginMap.get(caller) else null;
+    let rlState = getLoginRateLimitState(loginRateLimits, caller.toText(), now);
+    {
+      isLoggedIn;
+      lastLoginAt;
+      loginAttempts = rlState.attempts;
+      isRateLimited = rlState.isRateLimited;
+    };
+  };
+
+  // ── Stale-entry pruning ────────────────────────────────────────────────────
+
+  /// Prune login rate-limit entries older than 2× the login window (120 s).
+  public func pruneLoginRateLimits(
+    loginRateLimits : Map.Map<Text, UserTypes.LoginRateLimitEntry>,
+    now : Int,
+  ) : Nat {
+    let staleKeys = List.empty<Text>();
+    for ((k, entry) in loginRateLimits.entries()) {
+      if (now - entry.windowStart >= LOGIN_STALE_NS) {
+        staleKeys.add(k);
+      };
+    };
+    let removed = staleKeys.size();
+    staleKeys.forEach(func (k) { loginRateLimits.remove(k) });
+    removed;
+  };
+
+  /// Prune enquiry/general rate-limit entries older than 2× the enquiry window (7200 s).
+  public func pruneEnquiryRateLimits(
+    rateLimitMap : Map.Map<Text, Common.RateLimitEntry>,
+    now : Int,
+  ) : Nat {
+    let staleKeys = List.empty<Text>();
+    for ((k, entry) in rateLimitMap.entries()) {
+      if (now - entry.windowStart >= ENQUIRY_STALE_NS) {
+        staleKeys.add(k);
+      };
+    };
+    let removed = staleKeys.size();
+    staleKeys.forEach(func (k) { rateLimitMap.remove(k) });
+    removed;
+  };
+
+  /// Prune idempotency entries older than 24 hours.
+  public func pruneIdempotencyKeys(
+    idempotencyKeys : Map.Map<Text, Common.IdempotencyEntry>,
+    now : Int,
+  ) : Nat {
+    let staleKeys = List.empty<Text>();
+    for ((k, entry) in idempotencyKeys.entries()) {
+      if (now - entry.createdAt >= IDEMPOTENCY_TTL_NS) {
+        staleKeys.add(k);
+      };
+    };
+    let removed = staleKeys.size();
+    staleKeys.forEach(func (k) { idempotencyKeys.remove(k) });
+    removed;
+  };
+
+  // ── Existing helpers ───────────────────────────────────────────────────────
 
   public func isCacheFresh(entry : UserTypes.AnalyticsCacheEntry, now : Common.Timestamp) : Bool {
     now - entry.cachedAt < CACHE_TTL_NS;

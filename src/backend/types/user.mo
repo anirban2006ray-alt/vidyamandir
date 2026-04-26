@@ -1,6 +1,21 @@
 import Common "common";
 
 module {
+  /// Per-principal login rate-limit entry: tracks attempt count and window start.
+  /// Window = 60 seconds (60_000_000_000 nanoseconds). Max 5 attempts per window.
+  public type LoginRateLimitEntry = {
+    count : Nat;
+    windowStart : Int; // nanoseconds (Time.now())
+  };
+
+  /// Returned by getCallerLoginStatus — lets the frontend show lockout countdown.
+  public type CallerLoginStatus = {
+    isLoggedIn : Bool;       // true when caller has a non-anonymous principal
+    lastLoginAt : ?Int;      // nanosecond timestamp of last successful login, or null
+    loginAttempts : Nat;     // attempts in the current 60-second window (0 if window expired)
+    isRateLimited : Bool;    // true when loginAttempts > 5 and window is still active
+  };
+
   public type UserProfile = {
     name : Text;
     email : Text;

@@ -16,6 +16,6 @@ module {
     submittedAt : Common.Timestamp;
     status : EnquiryStatus;
     enquiryType : Text;   // "standard" | "chat"
-    aiReply : Text;       // empty for standard enquiries; AI response for chat
+    aiReply : Text;       // AI-generated bilingual (English+Bengali) response; sent to user email+SMS
   };
 };

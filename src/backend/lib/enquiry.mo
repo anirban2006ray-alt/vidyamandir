@@ -191,7 +191,7 @@ module {
     };
   };
 
-  /// Update the aiReply field of an existing enquiry. Returns true if updated.
+  /// Update the aiReply field AND set status to #replied atomically. Returns true if updated.
   public func updateEnquiryAiReply(
     enquiries : Map.Map<Text, EnquiryTypes.Enquiry>,
     id : Text,
@@ -200,7 +200,7 @@ module {
     switch (enquiries.get(id)) {
       case null { false };
       case (?e) {
-        enquiries.add(id, { e with aiReply });
+        enquiries.add(id, { e with aiReply; status = #replied });
         true;
       };
     };

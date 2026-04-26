@@ -121,6 +121,7 @@ type List__790383201<T> =
     var blocks : [var [var ?T]];
     var elementIndex : Nat__490723111
   };
+type LoginRateLimitEntry__49175995 = {count : Nat; windowStart : Int};
 type Map__158565046<K, V> = Map__297112838<K, V>;
 type Map__297112838<K, V> =
   {var root : Node__46230540<K, V>; var size : Nat__490723111};
@@ -297,6 +298,16 @@ actor {
   stable flashSales :
     {
       var root : Node__46230540<FlashSaleId__219302441, FlashSale__192530270>;
+      var size : Nat__490723111
+    };
+  stable lastLoginMap :
+    {
+      var root : Node__46230540<UserId__158757552, Int>;
+      var size : Nat__490723111
+    };
+  stable loginRateLimits :
+    {
+      var root : Node__46230540<Text, LoginRateLimitEntry__49175995>;
       var size : Nat__490723111
     };
   stable nextAddressId : [var Nat];
