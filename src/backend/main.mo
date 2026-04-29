@@ -23,8 +23,19 @@ import ReviewMixin "mixins/review-api";
 import OrderMixin "mixins/order-api";
 import UserMixin "mixins/user-api";
 import EnquiryMixin "mixins/enquiry-api";
-
-
+import BatchA "data/booksBatchA";
+import BatchB "data/booksBatchB";
+import BatchC "data/booksBatchC";
+import BatchD "data/booksBatchD";
+import BatchE "data/booksBatchE";
+import BatchF "data/booksBatchF";
+import BatchG "data/booksBatchG";
+import BatchH "data/booksBatchH";
+import BatchI "data/booksBatchI";
+import BatchJ "data/booksBatchJ";
+import BatchK "data/booksBatchK";
+import BatchL "data/booksBatchL";
+import Array "mo:core/Array";
 
 
 
@@ -42,8 +53,12 @@ actor {
   // --- Catalog state ---
   let products = Map.empty<Common.ProductId, CatalogTypes.Product>();
   let recentlyViewed = Map.empty<Common.UserId, List.List<Common.ProductId>>();
+  let isbnIndex = Map.empty<Text, Common.ProductId>();
+  let genreIndex = Map.empty<Text, List.List<Common.ProductId>>();
+  let langIndex = Map.empty<Text, List.List<Common.ProductId>>();
+  let bestsellersCache = List.empty<Common.ProductId>();
   let nextProductId : [var Nat] = [var 1];
-  include CatalogMixin(accessControlState, products, recentlyViewed, nextProductId);
+  include CatalogMixin(accessControlState, products, recentlyViewed, nextProductId, isbnIndex, genreIndex, langIndex, bestsellersCache);
 
   // --- Flash sale state ---
   let flashSales = Map.empty<Common.FlashSaleId, FlashSaleTypes.FlashSale>();
@@ -467,7 +482,115 @@ actor {
       },
     ];
 
-    for (seed in bookSeeds.values()) {
+    // Helper to parse genre text (e.g. "#fiction") to CatalogTypes.Genre
+    let parseGenre = func(g : Text) : CatalogTypes.Genre {
+      if (g == "#nonFiction") #nonFiction
+      else if (g == "#academic") #academic
+      else if (g == "#childrens") #childrens
+      else if (g == "#bengaliClassics") #bengaliClassics
+      else if (g == "#poetry") #poetry
+      else if (g == "#biography") #biography
+      else if (g == "#science") #science
+      else if (g == "#history") #history
+      else if (g == "#religion") #religion
+      else if (g == "#other") #other
+      else #fiction;
+    };
+
+    // Helper to parse language text (e.g. "#bengali") to CatalogTypes.Language
+    let parseLang = func(l : Text) : CatalogTypes.Language {
+      if (l == "#bengali") #bengali
+      else if (l == "#bilingual") #bilingual
+      else #english;
+    };
+
+    // Convert batch entries (no descriptionEn/descriptionBn) to BookSeed
+    let batchParts : [[BookSeed]] = [
+      BatchA.books.map<BatchA.BS, BookSeed>(func(b) {
+        { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
+          descriptionEn = ""; descriptionBn = "";
+          isbn = b.isbn; genre = b.genre; language = b.language;
+          publisher = b.publisher; priceInPaisa = b.priceInPaisa; stockCount = b.stockCount; slug = b.slug }
+      }),
+      BatchB.books.map<BatchB.BS, BookSeed>(func(b) {
+        { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
+          descriptionEn = ""; descriptionBn = "";
+          isbn = b.isbn; genre = b.genre; language = b.language;
+          publisher = b.publisher; priceInPaisa = b.priceInPaisa; stockCount = b.stockCount; slug = b.slug }
+      }),
+      BatchC.books.map<BatchC.BS, BookSeed>(func(b) {
+        { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
+          descriptionEn = ""; descriptionBn = "";
+          isbn = b.isbn; genre = b.genre; language = b.language;
+          publisher = b.publisher; priceInPaisa = b.priceInPaisa; stockCount = b.stockCount; slug = b.slug }
+      }),
+      BatchD.books.map<BatchD.BS, BookSeed>(func(b) {
+        { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
+          descriptionEn = ""; descriptionBn = "";
+          isbn = b.isbn; genre = b.genre; language = b.language;
+          publisher = b.publisher; priceInPaisa = b.priceInPaisa; stockCount = b.stockCount; slug = b.slug }
+      }),
+      BatchE.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+        { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
+          descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
+          isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
+          publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
+          slug = b.isbn }
+      }),
+      BatchF.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+        { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
+          descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
+          isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
+          publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
+          slug = b.isbn }
+      }),
+      BatchG.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+        { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
+          descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
+          isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
+          publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
+          slug = b.isbn }
+      }),
+      BatchH.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+        { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
+          descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
+          isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
+          publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
+          slug = b.isbn }
+      }),
+      BatchI.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+        { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
+          descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
+          isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
+          publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
+          slug = b.isbn }
+      }),
+      BatchJ.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+        { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
+          descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
+          isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
+          publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
+          slug = b.isbn }
+      }),
+      BatchK.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+        { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
+          descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
+          isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
+          publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
+          slug = b.isbn }
+      }),
+      BatchL.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+        { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
+          descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
+          isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
+          publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
+          slug = b.isbn }
+      }),
+    ];
+    let batchSeeds : [BookSeed] = batchParts.flatten<BookSeed>();
+    let allSeeds : [BookSeed] = bookSeeds.concat(batchSeeds);
+
+    for (seed in allSeeds.values()) {
       let input : CatalogTypes.CreateProductInput = {
         info = {
           titleEn = seed.titleEn;
@@ -482,11 +605,11 @@ actor {
         language = seed.language;
         publisher = seed.publisher;
         publicationDate = 0;
-        coverImageUrl = "https://picsum.photos/seed/" # seed.slug # "/300/400";
+        coverImageUrl = "https://covers.openlibrary.org/b/isbn/" # seed.isbn # "-L.jpg";
         priceInPaisa = seed.priceInPaisa;
         stockCount = seed.stockCount;
       };
-      switch (CatalogLib.createProduct(products, nextProductId[0], input)) {
+      switch (CatalogLib.createProduct(products, isbnIndex, genreIndex, langIndex, nextProductId[0], input)) {
         case (#ok(_)) { nextProductId[0] += 1 };
         case (#err(_)) {};
       };

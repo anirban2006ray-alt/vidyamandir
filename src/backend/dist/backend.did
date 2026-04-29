@@ -340,6 +340,15 @@ type CallerLoginStatus =
    loginAttempts: nat;
    rateLimitResetAt: opt int;
  };
+type BulkImportResult = 
+ record {
+   errors: vec record {
+                 nat;
+                 text;
+               };
+   inserted: nat;
+   skipped: nat;
+ };
 type AppError = 
  variant {
    alreadyExists;
@@ -461,6 +470,7 @@ service : {
       ok: QuestionId;
     });
   assignCallerUserRole: (user: principal, role: UserRole) -> ();
+  bulkImportProducts: (batch: vec CreateProductInput) -> (BulkImportResult);
   clearCart: () -> ();
   createCheckoutSession: (items: vec ShoppingItem, successUrl: text,
    cancelUrl: text) -> (text);
@@ -498,6 +508,7 @@ service : {
   downloadInvoice: (orderId: OrderId) -> (text) query;
   getAdminAnalytics: () -> (AdminAnalytics);
   getAnalyticsEvents: (offset: nat, limit: nat) -> (vec AnalyticsEvent) query;
+  getBestsellers: () -> (vec ProductView) query;
   getCallerLoginStatus: () -> (CallerLoginStatus) query;
   getCallerPrincipal: () -> (text) query;
   getCallerUserProfile: () -> (opt UserProfile) query;
@@ -558,6 +569,7 @@ service : {
     });
   recordDownload: (platform: text) -> ();
   recordRecentlyViewed: (productId: ProductId) -> ();
+  refreshBestsellersCache: () -> (nat);
   removeFromCart: (productId: ProductId) -> ();
   removeFromWishlist: (productId: ProductId) -> ();
   requestReturn: (orderId: OrderId, reason: text) ->

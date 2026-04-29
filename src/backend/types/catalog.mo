@@ -1,7 +1,20 @@
 import Common "common";
+import Nat "mo:core/Nat";
+import Order "mo:core/Order";
 
 module {
   public type Language = { #english; #bengali; #bilingual };
+
+  public func compareLanguage(a : Language, b : Language) : Order.Order {
+    let toOrd = func(l : Language) : Nat {
+      switch l {
+        case (#english) 0;
+        case (#bengali) 1;
+        case (#bilingual) 2;
+      };
+    };
+    Nat.compare(toOrd(a), toOrd(b));
+  };
 
   public type Genre = {
     #fiction;
@@ -15,6 +28,25 @@ module {
     #history;
     #religion;
     #other;
+  };
+
+  public func compareGenre(a : Genre, b : Genre) : Order.Order {
+    let toOrd = func(g : Genre) : Nat {
+      switch g {
+        case (#fiction) 0;
+        case (#nonFiction) 1;
+        case (#academic) 2;
+        case (#childrens) 3;
+        case (#bengaliClassics) 4;
+        case (#poetry) 5;
+        case (#biography) 6;
+        case (#science) 7;
+        case (#history) 8;
+        case (#religion) 9;
+        case (#other) 10;
+      };
+    };
+    Nat.compare(toOrd(a), toOrd(b));
   };
 
   public type ProductLabel = {

@@ -1,27 +1,27 @@
 {
-  "overview": "Vidyamandir is a bilingual (English & Bengali) e-commerce bookshop for a local store in Purba Bardhaman, West Bengal. It features a full Flipkart/Amazon-style shopping experience with AI chat support, PWA installation for Android/iOS/Windows, and comprehensive admin tools.",
+  "overview": "Vidyamandir is a bilingual (English & Bengali) e-commerce bookshop for a local shop in Purba Bardhaman, West Bengal. It features a large book catalogue with 500+ seed books, bulk import for 1 crore+ books, flash sales, cart, wishlist, orders, reviews, Q&A, admin analytics, and AI-powered enquiry responses.",
   "features": [
-    "Bilingual catalog (English & Bengali) with search and filters",
-    "Flash sales with live countdowns",
+    "500+ bilingual book catalogue with secondary indices for 1 crore scale",
+    "Bulk import API accepting 1,000 books per batch with ISBN deduplication",
+    "Genre, language, price, and rating filters with O(1) lookups via stable indices",
+    "Bestseller cache with auto-refresh after import and on-demand admin refresh",
+    "Admin bulk import UI with JSON paste and file upload",
+    "Flash sales with countdown timers",
     "Cart, wishlist, and Stripe checkout",
-    "AI-powered chatbox that answers book/order questions and sends replies to user email and phone",
-    "PWA installation for Android, iOS, and Windows",
     "Order tracking with visual timeline",
-    "Reviews and Q&A system",
-    "Admin panel with analytics, inventory, orders, promo codes, returns & refunds",
-    "Email and SMS notifications for key actions",
-    "PDF invoice downloads for customers and admins"
+    "Reviews and Q&A per book",
+    "AI-powered enquiry chatbox with email and SMS auto-replies",
+    "Admin panel with 9 tabs: analytics, products, flash sales, orders, enquiries, reviews, returns, promo codes, reports"
   ],
   "category": "e-commerce",
   "tags": [
     "bookshop",
-    "e-commerce",
-    "bilingual",
     "bengali",
-    "pwa",
-    "ai-chatbox",
-    "india",
-    "retail"
+    "bilingual",
+    "e-commerce",
+    "catalogue",
+    "books",
+    "india"
   ],
-  "last_updated": "2026-04-23T22:03:21.058Z"
+  "last_updated": "2026-04-28T14:19:43.504Z"
 }

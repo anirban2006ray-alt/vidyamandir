@@ -87,6 +87,11 @@ export type AppError = { 'rateLimitExceeded' : null } |
   { 'unauthorized' : null } |
   { 'insufficientStock' : null } |
   { 'alreadyReviewed' : null };
+export interface BulkImportResult {
+  'skipped' : bigint,
+  'errors' : Array<[bigint, string]>,
+  'inserted' : bigint,
+}
 export interface CallerLoginStatus {
   'lastLoginAt' : [] | [bigint],
   'loginAttemptWindowSeconds' : bigint,
@@ -398,6 +403,10 @@ export interface _SERVICE {
       { 'err' : AppError }
   >,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'bulkImportProducts' : ActorMethod<
+    [Array<CreateProductInput>],
+    BulkImportResult
+  >,
   'clearCart' : ActorMethod<[], undefined>,
   'createCheckoutSession' : ActorMethod<
     [Array<ShoppingItem>, string, string],
@@ -437,6 +446,7 @@ export interface _SERVICE {
   'downloadInvoice' : ActorMethod<[OrderId], string>,
   'getAdminAnalytics' : ActorMethod<[], AdminAnalytics>,
   'getAnalyticsEvents' : ActorMethod<[bigint, bigint], Array<AnalyticsEvent>>,
+  'getBestsellers' : ActorMethod<[], Array<ProductView>>,
   'getCallerLoginStatus' : ActorMethod<[], CallerLoginStatus>,
   'getCallerPrincipal' : ActorMethod<[], string>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
@@ -503,6 +513,7 @@ export interface _SERVICE {
   >,
   'recordDownload' : ActorMethod<[string], undefined>,
   'recordRecentlyViewed' : ActorMethod<[ProductId], undefined>,
+  'refreshBestsellersCache' : ActorMethod<[], bigint>,
   'removeFromCart' : ActorMethod<[ProductId], undefined>,
   'removeFromWishlist' : ActorMethod<[ProductId], undefined>,
   'requestReturn' : ActorMethod<

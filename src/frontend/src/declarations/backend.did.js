@@ -43,6 +43,49 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
+export const ProductLabel = IDL.Record({
+  'descriptionBn' : IDL.Text,
+  'descriptionEn' : IDL.Text,
+  'authorBn' : IDL.Text,
+  'authorEn' : IDL.Text,
+  'titleBn' : IDL.Text,
+  'titleEn' : IDL.Text,
+});
+export const Language = IDL.Variant({
+  'bilingual' : IDL.Null,
+  'bengali' : IDL.Null,
+  'english' : IDL.Null,
+});
+export const Genre = IDL.Variant({
+  'other' : IDL.Null,
+  'biography' : IDL.Null,
+  'nonFiction' : IDL.Null,
+  'academic' : IDL.Null,
+  'history' : IDL.Null,
+  'bengaliClassics' : IDL.Null,
+  'religion' : IDL.Null,
+  'fiction' : IDL.Null,
+  'childrens' : IDL.Null,
+  'poetry' : IDL.Null,
+  'science' : IDL.Null,
+});
+export const Timestamp = IDL.Int;
+export const CreateProductInput = IDL.Record({
+  'coverImageUrl' : IDL.Text,
+  'info' : ProductLabel,
+  'isbn' : IDL.Text,
+  'publisher' : IDL.Text,
+  'priceInPaisa' : IDL.Nat,
+  'language' : Language,
+  'stockCount' : IDL.Nat,
+  'genre' : Genre,
+  'publicationDate' : Timestamp,
+});
+export const BulkImportResult = IDL.Record({
+  'skipped' : IDL.Nat,
+  'errors' : IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text)),
+  'inserted' : IDL.Nat,
+});
 export const ShoppingItem = IDL.Record({
   'productName' : IDL.Text,
   'currency' : IDL.Text,
@@ -50,7 +93,6 @@ export const ShoppingItem = IDL.Record({
   'priceInCents' : IDL.Nat,
   'productDescription' : IDL.Text,
 });
-export const Timestamp = IDL.Int;
 export const FlashSaleItem = IDL.Record({
   'discountedPriceInPaisa' : IDL.Nat,
   'discountPercent' : IDL.Nat,
@@ -81,43 +123,6 @@ export const CreateOrderInput = IDL.Record({
   'items' : IDL.Vec(OrderItem),
 });
 export const OrderId = IDL.Nat;
-export const ProductLabel = IDL.Record({
-  'descriptionBn' : IDL.Text,
-  'descriptionEn' : IDL.Text,
-  'authorBn' : IDL.Text,
-  'authorEn' : IDL.Text,
-  'titleBn' : IDL.Text,
-  'titleEn' : IDL.Text,
-});
-export const Language = IDL.Variant({
-  'bilingual' : IDL.Null,
-  'bengali' : IDL.Null,
-  'english' : IDL.Null,
-});
-export const Genre = IDL.Variant({
-  'other' : IDL.Null,
-  'biography' : IDL.Null,
-  'nonFiction' : IDL.Null,
-  'academic' : IDL.Null,
-  'history' : IDL.Null,
-  'bengaliClassics' : IDL.Null,
-  'religion' : IDL.Null,
-  'fiction' : IDL.Null,
-  'childrens' : IDL.Null,
-  'poetry' : IDL.Null,
-  'science' : IDL.Null,
-});
-export const CreateProductInput = IDL.Record({
-  'coverImageUrl' : IDL.Text,
-  'info' : ProductLabel,
-  'isbn' : IDL.Text,
-  'publisher' : IDL.Text,
-  'priceInPaisa' : IDL.Nat,
-  'language' : Language,
-  'stockCount' : IDL.Nat,
-  'genre' : Genre,
-  'publicationDate' : Timestamp,
-});
 export const PromoCodeId = IDL.Nat;
 export const CreateReviewInput = IDL.Record({
   'bodyEn' : IDL.Text,
@@ -141,6 +146,21 @@ export const AnalyticsEvent = IDL.Record({
   'timestamp' : Timestamp,
   'amount' : IDL.Opt(IDL.Nat),
   'eventType' : IDL.Text,
+});
+export const ProductView = IDL.Record({
+  'id' : ProductId,
+  'coverImageUrl' : IDL.Text,
+  'info' : ProductLabel,
+  'isbn' : IDL.Text,
+  'publisher' : IDL.Text,
+  'createdAt' : Timestamp,
+  'priceInPaisa' : IDL.Nat,
+  'language' : Language,
+  'averageRating' : IDL.Float64,
+  'stockCount' : IDL.Nat,
+  'genre' : Genre,
+  'publicationDate' : Timestamp,
+  'reviewCount' : IDL.Nat,
 });
 export const CallerLoginStatus = IDL.Record({
   'lastLoginAt' : IDL.Opt(IDL.Int),
@@ -242,21 +262,6 @@ export const OrderedQuantityItem = IDL.Record({
   'productTitle' : IDL.Text,
   'productId' : ProductId,
   'totalRevenue' : IDL.Nat,
-});
-export const ProductView = IDL.Record({
-  'id' : ProductId,
-  'coverImageUrl' : IDL.Text,
-  'info' : ProductLabel,
-  'isbn' : IDL.Text,
-  'publisher' : IDL.Text,
-  'createdAt' : Timestamp,
-  'priceInPaisa' : IDL.Nat,
-  'language' : Language,
-  'averageRating' : IDL.Float64,
-  'stockCount' : IDL.Nat,
-  'genre' : Genre,
-  'publicationDate' : Timestamp,
-  'reviewCount' : IDL.Nat,
 });
 export const Review = IDL.Record({
   'id' : ReviewId,
@@ -421,6 +426,11 @@ export const idlService = IDL.Service({
       [],
     ),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'bulkImportProducts' : IDL.Func(
+      [IDL.Vec(CreateProductInput)],
+      [BulkImportResult],
+      [],
+    ),
   'clearCart' : IDL.Func([], [], []),
   'createCheckoutSession' : IDL.Func(
       [IDL.Vec(ShoppingItem), IDL.Text, IDL.Text],
@@ -465,6 +475,7 @@ export const idlService = IDL.Service({
       [IDL.Vec(AnalyticsEvent)],
       ['query'],
     ),
+  'getBestsellers' : IDL.Func([], [IDL.Vec(ProductView)], ['query']),
   'getCallerLoginStatus' : IDL.Func([], [CallerLoginStatus], ['query']),
   'getCallerPrincipal' : IDL.Func([], [IDL.Text], ['query']),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
@@ -551,6 +562,7 @@ export const idlService = IDL.Service({
     ),
   'recordDownload' : IDL.Func([IDL.Text], [], []),
   'recordRecentlyViewed' : IDL.Func([ProductId], [], []),
+  'refreshBestsellersCache' : IDL.Func([], [IDL.Nat], []),
   'removeFromCart' : IDL.Func([ProductId], [], []),
   'removeFromWishlist' : IDL.Func([ProductId], [], []),
   'requestReturn' : IDL.Func(
@@ -668,6 +680,49 @@ export const idlFactory = ({ IDL }) => {
     'user' : IDL.Null,
     'guest' : IDL.Null,
   });
+  const ProductLabel = IDL.Record({
+    'descriptionBn' : IDL.Text,
+    'descriptionEn' : IDL.Text,
+    'authorBn' : IDL.Text,
+    'authorEn' : IDL.Text,
+    'titleBn' : IDL.Text,
+    'titleEn' : IDL.Text,
+  });
+  const Language = IDL.Variant({
+    'bilingual' : IDL.Null,
+    'bengali' : IDL.Null,
+    'english' : IDL.Null,
+  });
+  const Genre = IDL.Variant({
+    'other' : IDL.Null,
+    'biography' : IDL.Null,
+    'nonFiction' : IDL.Null,
+    'academic' : IDL.Null,
+    'history' : IDL.Null,
+    'bengaliClassics' : IDL.Null,
+    'religion' : IDL.Null,
+    'fiction' : IDL.Null,
+    'childrens' : IDL.Null,
+    'poetry' : IDL.Null,
+    'science' : IDL.Null,
+  });
+  const Timestamp = IDL.Int;
+  const CreateProductInput = IDL.Record({
+    'coverImageUrl' : IDL.Text,
+    'info' : ProductLabel,
+    'isbn' : IDL.Text,
+    'publisher' : IDL.Text,
+    'priceInPaisa' : IDL.Nat,
+    'language' : Language,
+    'stockCount' : IDL.Nat,
+    'genre' : Genre,
+    'publicationDate' : Timestamp,
+  });
+  const BulkImportResult = IDL.Record({
+    'skipped' : IDL.Nat,
+    'errors' : IDL.Vec(IDL.Tuple(IDL.Nat, IDL.Text)),
+    'inserted' : IDL.Nat,
+  });
   const ShoppingItem = IDL.Record({
     'productName' : IDL.Text,
     'currency' : IDL.Text,
@@ -675,7 +730,6 @@ export const idlFactory = ({ IDL }) => {
     'priceInCents' : IDL.Nat,
     'productDescription' : IDL.Text,
   });
-  const Timestamp = IDL.Int;
   const FlashSaleItem = IDL.Record({
     'discountedPriceInPaisa' : IDL.Nat,
     'discountPercent' : IDL.Nat,
@@ -706,43 +760,6 @@ export const idlFactory = ({ IDL }) => {
     'items' : IDL.Vec(OrderItem),
   });
   const OrderId = IDL.Nat;
-  const ProductLabel = IDL.Record({
-    'descriptionBn' : IDL.Text,
-    'descriptionEn' : IDL.Text,
-    'authorBn' : IDL.Text,
-    'authorEn' : IDL.Text,
-    'titleBn' : IDL.Text,
-    'titleEn' : IDL.Text,
-  });
-  const Language = IDL.Variant({
-    'bilingual' : IDL.Null,
-    'bengali' : IDL.Null,
-    'english' : IDL.Null,
-  });
-  const Genre = IDL.Variant({
-    'other' : IDL.Null,
-    'biography' : IDL.Null,
-    'nonFiction' : IDL.Null,
-    'academic' : IDL.Null,
-    'history' : IDL.Null,
-    'bengaliClassics' : IDL.Null,
-    'religion' : IDL.Null,
-    'fiction' : IDL.Null,
-    'childrens' : IDL.Null,
-    'poetry' : IDL.Null,
-    'science' : IDL.Null,
-  });
-  const CreateProductInput = IDL.Record({
-    'coverImageUrl' : IDL.Text,
-    'info' : ProductLabel,
-    'isbn' : IDL.Text,
-    'publisher' : IDL.Text,
-    'priceInPaisa' : IDL.Nat,
-    'language' : Language,
-    'stockCount' : IDL.Nat,
-    'genre' : Genre,
-    'publicationDate' : Timestamp,
-  });
   const PromoCodeId = IDL.Nat;
   const CreateReviewInput = IDL.Record({
     'bodyEn' : IDL.Text,
@@ -766,6 +783,21 @@ export const idlFactory = ({ IDL }) => {
     'timestamp' : Timestamp,
     'amount' : IDL.Opt(IDL.Nat),
     'eventType' : IDL.Text,
+  });
+  const ProductView = IDL.Record({
+    'id' : ProductId,
+    'coverImageUrl' : IDL.Text,
+    'info' : ProductLabel,
+    'isbn' : IDL.Text,
+    'publisher' : IDL.Text,
+    'createdAt' : Timestamp,
+    'priceInPaisa' : IDL.Nat,
+    'language' : Language,
+    'averageRating' : IDL.Float64,
+    'stockCount' : IDL.Nat,
+    'genre' : Genre,
+    'publicationDate' : Timestamp,
+    'reviewCount' : IDL.Nat,
   });
   const CallerLoginStatus = IDL.Record({
     'lastLoginAt' : IDL.Opt(IDL.Int),
@@ -867,21 +899,6 @@ export const idlFactory = ({ IDL }) => {
     'productTitle' : IDL.Text,
     'productId' : ProductId,
     'totalRevenue' : IDL.Nat,
-  });
-  const ProductView = IDL.Record({
-    'id' : ProductId,
-    'coverImageUrl' : IDL.Text,
-    'info' : ProductLabel,
-    'isbn' : IDL.Text,
-    'publisher' : IDL.Text,
-    'createdAt' : Timestamp,
-    'priceInPaisa' : IDL.Nat,
-    'language' : Language,
-    'averageRating' : IDL.Float64,
-    'stockCount' : IDL.Nat,
-    'genre' : Genre,
-    'publicationDate' : Timestamp,
-    'reviewCount' : IDL.Nat,
   });
   const Review = IDL.Record({
     'id' : ReviewId,
@@ -1040,6 +1057,11 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'bulkImportProducts' : IDL.Func(
+        [IDL.Vec(CreateProductInput)],
+        [BulkImportResult],
+        [],
+      ),
     'clearCart' : IDL.Func([], [], []),
     'createCheckoutSession' : IDL.Func(
         [IDL.Vec(ShoppingItem), IDL.Text, IDL.Text],
@@ -1084,6 +1106,7 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(AnalyticsEvent)],
         ['query'],
       ),
+    'getBestsellers' : IDL.Func([], [IDL.Vec(ProductView)], ['query']),
     'getCallerLoginStatus' : IDL.Func([], [CallerLoginStatus], ['query']),
     'getCallerPrincipal' : IDL.Func([], [IDL.Text], ['query']),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
@@ -1178,6 +1201,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'recordDownload' : IDL.Func([IDL.Text], [], []),
     'recordRecentlyViewed' : IDL.Func([ProductId], [], []),
+    'refreshBestsellersCache' : IDL.Func([], [IDL.Nat], []),
     'removeFromCart' : IDL.Func([ProductId], [], []),
     'removeFromWishlist' : IDL.Func([ProductId], [], []),
     'requestReturn' : IDL.Func(

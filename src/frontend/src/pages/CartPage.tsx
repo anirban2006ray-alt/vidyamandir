@@ -22,6 +22,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { BookCover } from "../components/BookCover";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { useAuth } from "../hooks/use-auth";
 import { useCart } from "../hooks/use-cart";
@@ -377,23 +378,19 @@ export default function CartPage() {
                     params={{ id: item.productId.toString() }}
                     className="shrink-0"
                   >
-                    <div className="w-20 h-28 rounded-md overflow-hidden shadow-subtle border border-border/60 bg-muted">
-                      {item.coverImageUrl ? (
-                        <img
-                          src={item.coverImageUrl}
-                          alt={
-                            lang === "bn" && item.titleBn
-                              ? item.titleBn
-                              : item.titleEn
-                          }
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-3xl bg-primary/10">
-                          📚
-                        </div>
-                      )}
+                    <div
+                      className="w-20 h-28 rounded-md overflow-hidden shadow-subtle border border-border/60 relative"
+                      style={{ background: "#0A1628" }}
+                    >
+                      <BookCover
+                        coverImageUrl={item.coverImageUrl}
+                        title={
+                          lang === "bn" && item.titleBn
+                            ? item.titleBn
+                            : item.titleEn
+                        }
+                        imgClassName="group-hover:scale-105 transition-transform duration-300"
+                      />
                     </div>
                   </Link>
 

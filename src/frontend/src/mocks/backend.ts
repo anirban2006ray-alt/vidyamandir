@@ -111,6 +111,13 @@ export const mockBackend: backendInterface = {
   createFlashSale: async () => BigInt(1),
   createOrder: async () => ({ __kind__: "ok" as const, ok: BigInt(1) }),
   createProduct: async () => ({ __kind__: "ok" as const, ok: BigInt(4) }),
+  bulkImportProducts: async () => ({
+    inserted: BigInt(0),
+    skipped: BigInt(0),
+    errors: [],
+  }),
+  getBestsellers: async () => [],
+  refreshBestsellersCache: async () => BigInt(0),
   adminApproveReview: async () => ({ __kind__: "ok" as const, ok: true }),
   adminDeleteReview: async () => ({ __kind__: "ok" as const, ok: true }),
   createPromoCode: async () => ({ __kind__: "ok" as const, ok: BigInt(1) }),

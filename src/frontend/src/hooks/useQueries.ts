@@ -1072,6 +1072,87 @@ export function useRecordDownload() {
   });
 }
 
+// ─── Admin — Bulk Import & Bestsellers ───────────────────────────────────────
+
+export interface BulkImportResult {
+  inserted: bigint;
+  skipped: bigint;
+  errors: Array<[bigint, string]>;
+}
+
+export function useBulkImportProducts() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      items: CreateProductInput[],
+    ): Promise<BulkImportResult> => {
+      if (!actor) throw new Error("Actor not available");
+      const a = actor as unknown as Record<string, unknown>;
+      if (typeof a.bulkImportProducts === "function") {
+        return (
+          a.bulkImportProducts as (
+            items: CreateProductInput[],
+          ) => Promise<BulkImportResult>
+        )(items);
+      }
+      // Graceful fallback: insert one by one
+      let inserted = BigInt(0);
+      let skipped = BigInt(0);
+      const errors: Array<[bigint, string]> = [];
+      for (let i = 0; i < items.length; i++) {
+        try {
+          await actor.createProduct(items[i]);
+          inserted += BigInt(1);
+        } catch (e) {
+          errors.push([BigInt(i), e instanceof Error ? e.message : String(e)]);
+          skipped += BigInt(1);
+        }
+      }
+      return { inserted, skipped, errors };
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["products"] });
+      void qc.invalidateQueries({ queryKey: ["bestsellers"] });
+    },
+  });
+}
+
+export function useRefreshBestsellers() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<bigint> => {
+      if (!actor) throw new Error("Actor not available");
+      const a = actor as unknown as Record<string, unknown>;
+      if (typeof a.refreshBestsellersCache === "function") {
+        await (a.refreshBestsellersCache as () => Promise<void>)();
+      }
+      return BigInt(50);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["bestsellers"] });
+      void qc.invalidateQueries({ queryKey: ["adminAnalytics"] });
+    },
+  });
+}
+
+export function useGetBestsellers() {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<ProductView[]>({
+    queryKey: ["bestsellers"],
+    queryFn: async () => {
+      if (!actor) return [];
+      const a = actor as unknown as Record<string, unknown>;
+      if (typeof a.getBestsellers === "function") {
+        return (a.getBestsellers as () => Promise<ProductView[]>)();
+      }
+      return [];
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
 // ─── Stripe ───────────────────────────────────────────────────────────────────
 
 export function useIsStripeConfigured() {

@@ -28,6 +28,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Answer, AppError, Question, Review } from "../backend.d.ts";
+import { BookCover } from "../components/BookCover";
 import { StarRating } from "../components/StarRating";
 import { useAuth } from "../hooks/use-auth";
 import { useCart } from "../hooks/use-cart";
@@ -77,12 +78,16 @@ const LANG_LABELS: Record<string, { en: string; bn: string; flag: string }> = {
 function ImageCarousel({
   images,
   title,
+  author,
+  isbn,
   isOutOfStock,
   isWishlisted,
   onWishlist,
 }: {
   images: string[];
   title: string;
+  author?: string;
+  isbn?: string;
   isOutOfStock: boolean;
   isWishlisted: boolean;
   onWishlist: () => void;
@@ -90,9 +95,16 @@ function ImageCarousel({
   const [active, setActive] = useState(0);
   const [direction, setDirection] = useState(1);
   const [isZoomed, setIsZoomed] = useState(false);
-  const validImages = images.filter(Boolean);
-  const displayImages =
-    validImages.length > 0 ? validImages : ["/assets/images/placeholder.svg"];
+
+  // Build display images: prefer provided images, fall back to Open Library
+  const resolvedImages = images.filter(Boolean);
+  const coverSrc =
+    resolvedImages.length > 0
+      ? resolvedImages
+      : isbn
+        ? [`https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`]
+        : [];
+  const displayImages = coverSrc.length > 0 ? coverSrc : [null]; // null = styled fallback
 
   const goTo = (idx: number) => {
     setDirection(idx > active ? 1 : -1);
@@ -121,11 +133,22 @@ function ImageCarousel({
               onMouseEnter={() => setIsZoomed(true)}
               onMouseLeave={() => setIsZoomed(false)}
             >
-              <img
-                src={displayImages[active]}
-                alt={title}
-                className="w-full h-full object-cover"
-              />
+              {displayImages[active] ? (
+                <BookCover
+                  coverImageUrl={displayImages[active]}
+                  title={title}
+                  author={author}
+                  isOutOfStock={isOutOfStock}
+                />
+              ) : (
+                <BookCover
+                  coverImageUrl={null}
+                  isbn={isbn}
+                  title={title}
+                  author={author}
+                  isOutOfStock={isOutOfStock}
+                />
+              )}
             </div>
           </motion.div>
         </AnimatePresence>
@@ -181,7 +204,7 @@ function ImageCarousel({
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
             {displayImages.map((src, i) => (
               <button
-                key={`dot-${src}`}
+                key={`dot-${src ?? "fallback"}-pos${i + 1}`}
                 type="button"
                 onClick={() => goTo(i)}
                 aria-label={`View image ${i + 1}`}
@@ -201,22 +224,27 @@ function ImageCarousel({
         <div className="flex gap-2 overflow-x-auto pb-1 max-w-[380px] mx-auto md:mx-0 scroll-smooth">
           {displayImages.map((src, i) => (
             <button
-              key={`thumb-${src}`}
+              key={`thumb-pos-${i + 1}`}
               type="button"
               onClick={() => goTo(i)}
               aria-label={`Thumbnail ${i + 1}`}
-              className={`shrink-0 w-14 h-18 rounded-md overflow-hidden border-2 transition-smooth ${
+              className={`shrink-0 w-14 h-18 rounded-md overflow-hidden border-2 transition-smooth relative ${
                 i === active
                   ? "border-accent shadow-card"
                   : "border-border opacity-60 hover:opacity-100 hover:border-accent/50"
               }`}
               data-ocid={`product.thumbnail.${i + 1}`}
+              style={{ height: 72 }}
             >
-              <img
-                src={src}
-                alt={`View ${i + 1}`}
-                className="w-full h-full object-cover"
-              />
+              {src ? (
+                <img
+                  src={src}
+                  alt={`View ${i + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <BookCover coverImageUrl={null} isbn={isbn} title={title} />
+              )}
             </button>
           ))}
         </div>
@@ -1243,6 +1271,8 @@ export default function ProductPage() {
             <ImageCarousel
               images={images}
               title={title}
+              author={author}
+              isbn={product.isbn}
               isOutOfStock={isOutOfStock}
               isWishlisted={isWishlisted}
               onWishlist={handleWishlist}

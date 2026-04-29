@@ -41,6 +41,7 @@ import {
   Trash2,
   TrendingDown,
   TrendingUp,
+  Upload,
   Users,
   Zap,
 } from "lucide-react";
@@ -65,8 +66,10 @@ import { LoadingSpinner } from "../components/LoadingSpinner";
 import { useAuth, useIsAdmin } from "../hooks/use-auth";
 import { useLanguage } from "../hooks/use-language";
 import {
+  type BulkImportResult,
   type OrderedQuantityRow,
   useApproveReview,
+  useBulkImportProducts,
   useCreateFlashSale,
   useCreateProduct,
   useCreatePromoCode,
@@ -84,6 +87,7 @@ import {
   useListAllReviews,
   useListFlashSales,
   useListProducts,
+  useRefreshBestsellers,
   useUpdateEnquiryStatus,
   useUpdateOrderStatus,
   useUpdateProduct,
@@ -2213,6 +2217,359 @@ function OrderedQtyTab() {
   );
 }
 
+// ─── Bulk Import Tab ──────────────────────────────────────────────────────────
+
+function BulkImportTab() {
+  const [jsonText, setJsonText] = useState("");
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<BulkImportResult | null>(
+    null,
+  );
+  const { mutate: bulkImport, isPending: importing } = useBulkImportProducts();
+  const { mutate: refreshCache, isPending: refreshing } =
+    useRefreshBestsellers();
+  const [refreshDone, setRefreshDone] = useState(false);
+
+  const validateJson = (text: string): string | null => {
+    if (!text.trim()) return null;
+    try {
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed))
+        return "JSON must be an array of book objects";
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : "Invalid JSON";
+    }
+  };
+
+  const handleTextChange = (text: string) => {
+    setJsonText(text);
+    setJsonError(validateJson(text));
+    if (importResult) setImportResult(null);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = ev.target?.result as string;
+      handleTextChange(content);
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be re-uploaded
+    e.target.value = "";
+  };
+
+  const handleImport = () => {
+    if (jsonError || !jsonText.trim()) return;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      setJsonError("Invalid JSON");
+      return;
+    }
+    if (!Array.isArray(parsed)) {
+      setJsonError("JSON must be an array of book objects");
+      return;
+    }
+    bulkImport(parsed as import("../backend.d.ts").CreateProductInput[], {
+      onSuccess: (result) => {
+        setImportResult(result);
+        toast.success(
+          `Import complete: ${result.inserted} inserted, ${result.skipped} skipped`,
+        );
+      },
+      onError: (err) => {
+        toast.error(err instanceof Error ? err.message : "Bulk import failed");
+      },
+    });
+  };
+
+  const handleRefresh = () => {
+    setRefreshDone(false);
+    refreshCache(undefined, {
+      onSuccess: (count) => {
+        setRefreshDone(true);
+        toast.success(`Bestsellers cache refreshed — ${count} entries`);
+        setTimeout(() => setRefreshDone(false), 4000);
+      },
+      onError: () => toast.error("Failed to refresh bestsellers cache"),
+    });
+  };
+
+  const hasContent = jsonText.trim().length > 0;
+  const isValid = hasContent && !jsonError;
+
+  return (
+    <div
+      className="animate-fade-in space-y-6"
+      data-ocid="admin.bulk_import_section"
+    >
+      {/* Section Header */}
+      <SectionHeader
+        icon={Upload}
+        title="Bulk Import Books"
+        action={
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            data-ocid="admin.refresh_bestsellers_button"
+            className={`flex items-center gap-1.5 text-xs px-4 py-2 rounded-lg font-bold border transition-smooth disabled:opacity-60 ${refreshDone ? "bg-green-500/15 text-green-400 border-green-500/30" : "btn-secondary"}`}
+          >
+            {refreshing ? (
+              <>
+                <RefreshCw size={12} className="animate-spin" /> Refreshing…
+              </>
+            ) : refreshDone ? (
+              <>
+                <CheckCircle2 size={12} /> Cache Refreshed!
+              </>
+            ) : (
+              <>
+                <RefreshCw size={12} /> Refresh Bestsellers Cache
+              </>
+            )}
+          </button>
+        }
+      />
+
+      {/* Instructions */}
+      <div
+        className="rounded-2xl p-4 text-xs leading-relaxed space-y-1.5"
+        style={{
+          background: "oklch(var(--muted) / 0.4)",
+          border: "1px solid oklch(var(--border))",
+        }}
+        data-ocid="admin.bulk_import_instructions"
+      >
+        <p className="font-bold text-foreground uppercase tracking-widest text-[11px] mb-2">
+          How to use Bulk Import
+        </p>
+        <p className="text-muted-foreground">
+          Paste a JSON array of book objects, or upload a{" "}
+          <code className="px-1 py-0.5 rounded bg-muted font-mono text-xs">
+            .json
+          </code>{" "}
+          file. Each object must have the same shape as a{" "}
+          <strong className="text-foreground">CreateProductInput</strong>.
+        </p>
+        <details className="mt-2">
+          <summary className="cursor-pointer text-accent font-semibold hover:opacity-80 transition-smooth">
+            View example format
+          </summary>
+          <pre
+            className="mt-2 p-3 rounded-xl text-[11px] overflow-x-auto font-mono leading-relaxed"
+            style={{
+              background: "oklch(var(--card))",
+              border: "1px solid oklch(var(--border))",
+              color: "oklch(var(--foreground) / 0.85)",
+            }}
+          >{`[
+  {
+    "info": {
+      "titleEn": "The Alchemist",
+      "titleBn": "আলকেমিস্ট",
+      "authorEn": "Paulo Coelho",
+      "authorBn": "পাওলো কোয়েলো",
+      "descriptionEn": "A classic novel...",
+      "descriptionBn": "একটি ক্লাসিক উপন্যাস..."
+    },
+    "coverImageUrl": "https://example.com/cover.jpg",
+    "isbn": "978-0-06-112241-5",
+    "publisher": "HarperCollins",
+    "priceInPaisa": 29900,
+    "language": "english",
+    "stockCount": 100,
+    "genre": "fiction",
+    "publicationDate": 0
+  }
+]`}</pre>
+        </details>
+      </div>
+
+      {/* File Upload */}
+      <div className="flex items-center gap-3">
+        <label
+          htmlFor="bulk-json-file"
+          className="btn-secondary flex items-center gap-2 text-xs px-4 py-2.5 rounded-lg cursor-pointer font-bold transition-smooth hover:opacity-90"
+          data-ocid="admin.bulk_import_upload_button"
+        >
+          <Upload size={13} />
+          Upload .json File
+          <input
+            id="bulk-json-file"
+            type="file"
+            accept=".json,application/json"
+            onChange={handleFileUpload}
+            className="sr-only"
+          />
+        </label>
+        <span className="text-xs text-muted-foreground">
+          or paste JSON below
+        </span>
+      </div>
+
+      {/* JSON Textarea */}
+      <div className="space-y-2">
+        <label
+          htmlFor="bulk-import-textarea"
+          className="text-xs font-bold text-muted-foreground uppercase tracking-widest"
+        >
+          JSON Array
+        </label>
+        <Textarea
+          id="bulk-import-textarea"
+          value={jsonText}
+          onChange={(e) => handleTextChange(e.target.value)}
+          placeholder={`[\n  {\n    "info": { "titleEn": "Book Title", ... },\n    "priceInPaisa": 29900,\n    ...\n  }\n]`}
+          rows={12}
+          className={`font-mono text-xs resize-y rounded-xl transition-smooth ${jsonError && hasContent ? "border-destructive focus-visible:ring-destructive" : isValid ? "border-green-500/60 focus-visible:ring-green-500/40" : ""}`}
+          data-ocid="admin.bulk_import_textarea"
+          spellCheck={false}
+        />
+        {/* Validation feedback */}
+        {hasContent && (
+          <div
+            className={`flex items-start gap-2 text-xs px-3 py-2 rounded-lg ${jsonError ? "bg-destructive/10 text-destructive" : "bg-green-500/10 text-green-400"}`}
+            data-ocid={
+              jsonError
+                ? "admin.bulk_import_json_error_state"
+                : "admin.bulk_import_json_success_state"
+            }
+          >
+            {jsonError ? (
+              <>
+                <span className="font-bold shrink-0">✗ Invalid JSON:</span>
+                <span>{jsonError}</span>
+              </>
+            ) : (
+              <>
+                <span className="font-bold shrink-0">✓ Valid JSON</span>
+                <span className="text-green-400/70">
+                  — {(() => {
+                    try {
+                      return (JSON.parse(jsonText) as unknown[]).length;
+                    } catch {
+                      return 0;
+                    }
+                  })()} books ready to import
+                </span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Import Button */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleImport}
+          disabled={!isValid || importing}
+          data-ocid="admin.bulk_import_submit_button"
+          className="cta-primary flex items-center gap-2 px-6 py-2.5 text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {importing ? (
+            <>
+              <RefreshCw size={14} className="animate-spin" /> Importing…
+            </>
+          ) : (
+            <>
+              <Upload size={14} /> Import Books
+            </>
+          )}
+        </button>
+        {hasContent && (
+          <button
+            type="button"
+            onClick={() => {
+              setJsonText("");
+              setJsonError(null);
+              setImportResult(null);
+            }}
+            className="text-xs text-muted-foreground hover:text-destructive transition-smooth px-3 py-2 rounded-lg hover:bg-destructive/10"
+            data-ocid="admin.bulk_import_clear_button"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* Import Result Summary */}
+      {importResult && (
+        <div
+          className="rounded-2xl p-5 space-y-4"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(var(--accent)/0.1), oklch(var(--card)))",
+            border: "1px solid oklch(var(--accent)/0.3)",
+          }}
+          data-ocid="admin.bulk_import_result_card"
+        >
+          <p className="text-xs font-bold uppercase tracking-widest text-accent mb-3">
+            Import Summary
+          </p>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center">
+              <p className="font-mono font-bold text-3xl text-green-400">
+                {importResult.inserted.toString()}
+              </p>
+              <p className="text-xs text-muted-foreground font-semibold mt-1 uppercase tracking-wider">
+                Imported
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="font-mono font-bold text-3xl text-amber-400">
+                {importResult.skipped.toString()}
+              </p>
+              <p className="text-xs text-muted-foreground font-semibold mt-1 uppercase tracking-wider">
+                Skipped
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="font-mono font-bold text-3xl text-destructive">
+                {importResult.errors.length.toString()}
+              </p>
+              <p className="text-xs text-muted-foreground font-semibold mt-1 uppercase tracking-wider">
+                Errors
+              </p>
+            </div>
+          </div>
+
+          {/* Error list */}
+          {importResult.errors.length > 0 && (
+            <div
+              className="mt-4 space-y-1.5"
+              data-ocid="admin.bulk_import_errors_list"
+            >
+              <p className="text-xs font-bold uppercase tracking-widest text-destructive mb-2">
+                Validation Errors
+              </p>
+              <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                {importResult.errors.map(([idx, reason]) => (
+                  <div
+                    key={idx.toString()}
+                    className="flex items-start gap-2 text-xs bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2"
+                    data-ocid={`admin.bulk_import_error.${(Number(idx) + 1).toString()}`}
+                  >
+                    <span className="font-mono font-bold text-destructive shrink-0">
+                      #{idx.toString()}
+                    </span>
+                    <span className="text-muted-foreground">{reason}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main AdminPage ────────────────────────────────────────────────────────────
 
 export default function AdminPage() {
@@ -2484,6 +2841,7 @@ export default function AdminPage() {
     { value: "returns", icon: RotateCcw, label: "Returns" },
     { value: "promo-codes", icon: Tag, label: "Promo Codes" },
     { value: "qty-report", icon: ListOrdered, label: "Qty Report" },
+    { value: "bulk-import", icon: Upload, label: "Bulk Import" },
   ];
 
   return (
@@ -2628,6 +2986,10 @@ export default function AdminPage() {
 
         <TabsContent value="qty-report">
           <OrderedQtyTab />
+        </TabsContent>
+
+        <TabsContent value="bulk-import">
+          <BulkImportTab />
         </TabsContent>
       </Tabs>
 

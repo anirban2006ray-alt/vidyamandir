@@ -312,6 +312,11 @@ export interface FlashSaleView {
     titleBn: string;
     titleEn: string;
 }
+export interface BulkImportResult {
+    skipped: bigint;
+    errors: Array<[bigint, string]>;
+    inserted: bigint;
+}
 export type QuestionId = bigint;
 export interface AdminReviewView {
     id: ReviewId;
@@ -471,6 +476,7 @@ export interface backendInterface {
         err: AppError;
     }>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    bulkImportProducts(batch: Array<CreateProductInput>): Promise<BulkImportResult>;
     clearCart(): Promise<void>;
     createCheckoutSession(items: Array<ShoppingItem>, successUrl: string, cancelUrl: string): Promise<string>;
     createFlashSale(input: CreateFlashSaleInput): Promise<FlashSaleId>;
@@ -517,6 +523,7 @@ export interface backendInterface {
     downloadInvoice(orderId: OrderId): Promise<string>;
     getAdminAnalytics(): Promise<AdminAnalytics>;
     getAnalyticsEvents(offset: bigint, limit: bigint): Promise<Array<AnalyticsEvent>>;
+    getBestsellers(): Promise<Array<ProductView>>;
     getCallerLoginStatus(): Promise<CallerLoginStatus>;
     getCallerPrincipal(): Promise<string>;
     getCallerUserProfile(): Promise<UserProfile | null>;
@@ -568,6 +575,7 @@ export interface backendInterface {
     }>;
     recordDownload(platform: string): Promise<void>;
     recordRecentlyViewed(productId: ProductId): Promise<void>;
+    refreshBestsellersCache(): Promise<bigint>;
     removeFromCart(productId: ProductId): Promise<void>;
     removeFromWishlist(productId: ProductId): Promise<void>;
     requestReturn(orderId: OrderId, reason: string): Promise<{

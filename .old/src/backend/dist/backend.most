@@ -281,6 +281,12 @@ actor {
         Node__46230540<AnswerId__847472744, AnswerInternal__972653366>;
       var size : Nat__490723111
     };
+  stable bestsellersCache :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?ProductId__160010635]];
+      var elementIndex : Nat__490723111
+    };
   stable carts :
     {
       var root :
@@ -298,6 +304,21 @@ actor {
   stable flashSales :
     {
       var root : Node__46230540<FlashSaleId__219302441, FlashSale__192530270>;
+      var size : Nat__490723111
+    };
+  stable genreIndex :
+    {
+      var root : Node__46230540<Text, List__415060402<ProductId__160010635>>;
+      var size : Nat__490723111
+    };
+  stable isbnIndex :
+    {
+      var root : Node__46230540<Text, ProductId__160010635>;
+      var size : Nat__490723111
+    };
+  stable langIndex :
+    {
+      var root : Node__46230540<Text, List__415060402<ProductId__160010635>>;
       var size : Nat__490723111
     };
   stable lastLoginMap :

@@ -8,6 +8,7 @@ import { useCart } from "../hooks/use-cart";
 import { useLanguage } from "../hooks/use-language";
 import { useGetWishlist } from "../hooks/useQueries";
 import { formatPrice } from "../lib/i18n";
+import { BookCover } from "./BookCover";
 import { StarRating } from "./StarRating";
 
 interface ProductCardProps {
@@ -128,20 +129,16 @@ export function ProductCard({
       >
         <div
           className={`aspect-[3/4] overflow-hidden relative ${isOutOfStock ? "opacity-70" : ""}`}
-          style={{ background: "oklch(var(--primary) / 0.15)" }}
+          style={{ background: "#0A1628" }}
         >
-          {product.coverImageUrl ? (
-            <img
-              src={product.coverImageUrl}
-              alt={title}
-              loading="lazy"
-              className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${isOutOfStock ? "grayscale" : ""}`}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-4xl">📚</span>
-            </div>
-          )}
+          <BookCover
+            coverImageUrl={product.coverImageUrl}
+            isbn={product.isbn}
+            title={title}
+            author={author}
+            isOutOfStock={isOutOfStock}
+            imgClassName="transition-transform duration-500 group-hover:scale-105"
+          />
           {/* Subtle gradient overlay at bottom of image */}
           <div
             className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none"
