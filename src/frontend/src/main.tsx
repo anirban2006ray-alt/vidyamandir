@@ -1,9 +1,11 @@
 import { InternetIdentityProvider } from "@caffeineai/core-infrastructure";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Component, useState } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { PassphraseGate } from "./components/PassphraseGate";
 
 BigInt.prototype.toJSON = function () {
   return this.toString();
@@ -139,12 +141,26 @@ const queryClient = new QueryClient({
   },
 });
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <AppErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <InternetIdentityProvider>
-        <App />
-      </InternetIdentityProvider>
-    </QueryClientProvider>
-  </AppErrorBoundary>,
-);
+const SESSION_KEY = "vm-passphrase-unlocked";
+
+function Root() {
+  const [unlocked, setUnlocked] = useState(
+    () => sessionStorage.getItem(SESSION_KEY) === "1",
+  );
+
+  if (!unlocked) {
+    return <PassphraseGate onUnlock={() => setUnlocked(true)} />;
+  }
+
+  return (
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <InternetIdentityProvider>
+          <App />
+        </InternetIdentityProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")!).render(<Root />);

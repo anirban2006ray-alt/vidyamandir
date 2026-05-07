@@ -538,6 +538,16 @@
     animation: bookGlow 3s ease-in-out infinite;
   }
 
+  /* Shake animation for passphrase gate error */
+  .animate-shake {
+    animation: shake 0.52s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+
+  /* Mic pulse animation for voice listening state */
+  .animate-mic-pulse {
+    animation: micPulse 1.2s ease-out infinite;
+  }
+
   /* Reduce motion support */
   @media (prefers-reduced-motion: reduce) {
     .transition-smooth,
@@ -551,6 +561,7 @@
     .animate-book-float,
     .animate-discount-pulse,
     .animate-book-glow,
+    .animate-mic-pulse,
     .pwa-card,
     .chatbox-trigger,
     .chatbox-dialog {
@@ -665,6 +676,80 @@
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-9px);
+  }
+  30% {
+    transform: translateX(9px);
+  }
+  45% {
+    transform: translateX(-7px);
+  }
+  60% {
+    transform: translateX(7px);
+  }
+  75% {
+    transform: translateX(-4px);
+  }
+  90% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes gradientPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.75;
+  }
+}
+
+@keyframes particleFloat {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-18px) scale(1.1);
+    opacity: 0.4;
+  }
+}
+
+@keyframes iconGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 24px oklch(0.64 0.23 38 / 0.2), inset 0 1px 0
+      oklch(0.72 0.25 40 / 0.15);
+  }
+  50% {
+    box-shadow: 0 0 40px oklch(0.64 0.23 38 / 0.45), inset 0 1px 0
+      oklch(0.72 0.25 40 / 0.25);
+  }
+}
+
+@keyframes micPulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
   }
 }
 
