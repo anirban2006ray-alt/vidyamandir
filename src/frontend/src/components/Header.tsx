@@ -407,6 +407,11 @@ export function Header() {
               label: t("flashSales"),
               ocid: "header.nav_flash-sales_link",
             },
+            {
+              to: "/study-materials" as const,
+              label: t("studyMaterials"),
+              ocid: "header.nav_study-materials_link",
+            },
           ].map((item) => (
             <Link
               key={item.to}
@@ -525,6 +530,7 @@ export function Header() {
                 { to: "/" as const, label: t("home") },
                 { to: "/shop" as const, label: t("shop") },
                 { to: "/flash-sales" as const, label: t("flashSales") },
+                { to: "/study-materials" as const, label: t("studyMaterials") },
                 ...(isAuthenticated
                   ? [
                       { to: "/orders" as const, label: t("myOrders") },

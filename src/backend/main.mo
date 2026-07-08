@@ -1,6 +1,7 @@
 import Map "mo:core/Map";
 import List "mo:core/List";
 import Set "mo:core/Set";
+import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
 import Stripe "mo:caffeineai-stripe/stripe";
 import OutCall "mo:caffeineai-http-outcalls/outcall";
@@ -15,6 +16,7 @@ import ReviewTypes "types/review";
 import OrderTypes "types/order";
 import UserTypes "types/user";
 import EnquiryTypes "types/enquiry";
+import StudyMaterialsTypes "types/study-materials";
 import CatalogLib "lib/catalog";
 import CatalogMixin "mixins/catalog-api";
 import FlashSaleMixin "mixins/flashsale-api";
@@ -23,6 +25,8 @@ import ReviewMixin "mixins/review-api";
 import OrderMixin "mixins/order-api";
 import UserMixin "mixins/user-api";
 import EnquiryMixin "mixins/enquiry-api";
+import StudyMaterialsMixin "mixins/study-materials-api";
+import StudyMaterialsLib "lib/study-materials";
 import BatchA "data/booksBatchA";
 import BatchB "data/booksBatchB";
 import BatchC "data/booksBatchC";
@@ -107,7 +111,10 @@ actor {
   // Key: UserId (Principal). Value: nanosecond timestamp of last successful login.
   let lastLoginMap = Map.empty<Common.UserId, Int>();
 
-  include UserMixin(accessControlState, profiles, orders, products, analyticsCache, analyticsEvents, loginRateLimits, lastLoginMap, rateLimitMap, orderIdempotencyKeys);
+  // --- OTP store: key = principalText, value = OtpEntry (6-digit code, TTL, attempts) ---
+  let otpStore = Map.empty<Text, UserTypes.OtpEntry>();
+
+  include UserMixin(accessControlState, profiles, orders, products, analyticsCache, analyticsEvents, loginRateLimits, lastLoginMap, rateLimitMap, orderIdempotencyKeys, otpStore);
 
   // --- Enquiry state ---
   let enquiries = Map.empty<Text, EnquiryTypes.Enquiry>();
@@ -115,6 +122,13 @@ actor {
   // Download tracking: platform name -> cumulative count
   let downloadCounts = Map.empty<Text, Nat>();
   include EnquiryMixin(accessControlState, enquiries, nextEnquiryId, transform, rateLimitMap, downloadCounts);
+
+  // --- Study materials state ---
+  let studyMaterials = Map.empty<Text, StudyMaterialsTypes.StudyMaterial>();
+  let nextStudyMaterialId : [var Nat] = [var 1];
+  // Per-material download tracking: material id -> cumulative count
+  let studyMaterialDownloadCounts = Map.empty<Text, Nat>();
+  include StudyMaterialsMixin(accessControlState, studyMaterials, nextStudyMaterialId, studyMaterialDownloadCounts);
 
   // --- Seed catalog if empty ---
   if (products.isEmpty()) {
@@ -506,80 +520,80 @@ actor {
 
     // Convert batch entries (no descriptionEn/descriptionBn) to BookSeed
     let batchParts : [[BookSeed]] = [
-      BatchA.books.map<BatchA.BS, BookSeed>(func(b) {
+      BatchA.books.map(func(b) {
         { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
           descriptionEn = ""; descriptionBn = "";
           isbn = b.isbn; genre = b.genre; language = b.language;
           publisher = b.publisher; priceInPaisa = b.priceInPaisa; stockCount = b.stockCount; slug = b.slug }
       }),
-      BatchB.books.map<BatchB.BS, BookSeed>(func(b) {
+      BatchB.books.map(func(b) {
         { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
           descriptionEn = ""; descriptionBn = "";
           isbn = b.isbn; genre = b.genre; language = b.language;
           publisher = b.publisher; priceInPaisa = b.priceInPaisa; stockCount = b.stockCount; slug = b.slug }
       }),
-      BatchC.books.map<BatchC.BS, BookSeed>(func(b) {
+      BatchC.books.map(func(b) {
         { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
           descriptionEn = ""; descriptionBn = "";
           isbn = b.isbn; genre = b.genre; language = b.language;
           publisher = b.publisher; priceInPaisa = b.priceInPaisa; stockCount = b.stockCount; slug = b.slug }
       }),
-      BatchD.books.map<BatchD.BS, BookSeed>(func(b) {
+      BatchD.books.map(func(b) {
         { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
           descriptionEn = ""; descriptionBn = "";
           isbn = b.isbn; genre = b.genre; language = b.language;
           publisher = b.publisher; priceInPaisa = b.priceInPaisa; stockCount = b.stockCount; slug = b.slug }
       }),
-      BatchE.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+      BatchE.books.map(func(b) {
         { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
           descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
           isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
           publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
           slug = b.isbn }
       }),
-      BatchF.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+      BatchF.books.map(func(b) {
         { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
           descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
           isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
           publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
           slug = b.isbn }
       }),
-      BatchG.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+      BatchG.books.map(func(b) {
         { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
           descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
           isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
           publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
           slug = b.isbn }
       }),
-      BatchH.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+      BatchH.books.map(func(b) {
         { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
           descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
           isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
           publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
           slug = b.isbn }
       }),
-      BatchI.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+      BatchI.books.map(func(b) {
         { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
           descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
           isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
           publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
           slug = b.isbn }
       }),
-      BatchJ.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+      BatchJ.books.map(func(b) {
         { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
           descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
           isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
           publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
           slug = b.isbn }
       }),
-      BatchK.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+      BatchK.books.map(func(b) {
         { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
           descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
           isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
           publisher = "Ananda Publishers"; priceInPaisa = b.price * 100; stockCount = b.stock;
           slug = b.isbn }
       }),
-      BatchL.books.map<{ titleEn: Text; titleBn: Text; authorEn: Text; authorBn: Text; descriptionEn: Text; descriptionBn: Text; isbn: Text; genre: Text; language: Text; price: Nat; stock: Nat; rating: Float; tags: [Text]; coverImageUrl: Text }, BookSeed>(func(b) {
+      BatchL.books.map(func(b) {
         { titleEn = b.titleEn; titleBn = b.titleBn; authorEn = b.authorEn; authorBn = b.authorBn;
           descriptionEn = b.descriptionEn; descriptionBn = b.descriptionBn;
           isbn = b.isbn; genre = parseGenre(b.genre); language = parseLang(b.language);
@@ -587,7 +601,7 @@ actor {
           slug = b.isbn }
       }),
     ];
-    let batchSeeds : [BookSeed] = batchParts.flatten<BookSeed>();
+    let batchSeeds : [BookSeed] = batchParts.flatten();
     let allSeeds : [BookSeed] = bookSeeds.concat(batchSeeds);
 
     for (seed in allSeeds.values()) {
@@ -611,6 +625,93 @@ actor {
       };
       switch (CatalogLib.createProduct(products, isbnIndex, genreIndex, langIndex, nextProductId[0], input)) {
         case (#ok(_)) { nextProductId[0] += 1 };
+        case (#err(_)) {};
+      };
+    };
+  };
+
+  // --- Seed study materials if empty ---
+  if (studyMaterials.isEmpty()) {
+    type StudyMaterialSeed = {
+      department : Text;
+      year : Nat;
+      semester : Nat;
+      subjectName : Text;
+      subjectCode : Text;
+      regulation : Text;
+      classTest : Text;
+      blobRef : Text;
+    };
+
+    let studyMaterialSeeds : [StudyMaterialSeed] = [
+      // ── CSE ──
+      { department = "CSE"; year = 1; semester = 1; subjectName = "Programming for Problem Solving"; subjectCode = "CS101"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-cse-r23-ct1-1" },
+      { department = "CSE"; year = 1; semester = 1; subjectName = "Programming for Problem Solving"; subjectCode = "CS101"; regulation = "R-23"; classTest = "Semester"; blobRef = "sample-cse-r23-sem-1" },
+      { department = "CSE"; year = 2; semester = 3; subjectName = "Data Structures"; subjectCode = "CS201"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-cse-r23-ct1-2" },
+      { department = "CSE"; year = 2; semester = 3; subjectName = "Data Structures"; subjectCode = "CS201"; regulation = "R-23"; classTest = "CT2"; blobRef = "sample-cse-r23-ct2-1" },
+      { department = "CSE"; year = 2; semester = 3; subjectName = "Data Structures"; subjectCode = "CS201"; regulation = "R-23"; classTest = "Semester"; blobRef = "sample-cse-r23-sem-2" },
+      { department = "CSE"; year = 3; semester = 5; subjectName = "Operating Systems"; subjectCode = "CS301"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-cse-r23-ct1-3" },
+      { department = "CSE"; year = 3; semester = 5; subjectName = "Operating Systems"; subjectCode = "CS301"; regulation = "R-23"; classTest = "Semester"; blobRef = "sample-cse-r23-sem-3" },
+      { department = "CSE"; year = 4; semester = 7; subjectName = "Compiler Design"; subjectCode = "CS401"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-cse-r23-ct1-4" },
+      { department = "CSE"; year = 1; semester = 1; subjectName = "Programming for Problem Solving"; subjectCode = "CS101"; regulation = "R-25"; classTest = "CT1"; blobRef = "sample-cse-r25-ct1-1" },
+      { department = "CSE"; year = 2; semester = 3; subjectName = "Data Structures"; subjectCode = "CS201"; regulation = "R-25"; classTest = "Semester"; blobRef = "sample-cse-r25-sem-1" },
+      { department = "CSE"; year = 3; semester = 5; subjectName = "Operating Systems"; subjectCode = "CS301"; regulation = "R-25"; classTest = "CT2"; blobRef = "sample-cse-r25-ct2-1" },
+      // ── ECE ──
+      { department = "ECE"; year = 1; semester = 1; subjectName = "Basic Electrical Engineering"; subjectCode = "EC101"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-ece-r23-ct1-1" },
+      { department = "ECE"; year = 2; semester = 3; subjectName = "Analog Electronics"; subjectCode = "EC201"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-ece-r23-ct1-2" },
+      { department = "ECE"; year = 2; semester = 3; subjectName = "Analog Electronics"; subjectCode = "EC201"; regulation = "R-23"; classTest = "Semester"; blobRef = "sample-ece-r23-sem-1" },
+      { department = "ECE"; year = 3; semester = 5; subjectName = "Digital Signal Processing"; subjectCode = "EC301"; regulation = "R-23"; classTest = "CT2"; blobRef = "sample-ece-r23-ct2-1" },
+      { department = "ECE"; year = 3; semester = 5; subjectName = "Digital Signal Processing"; subjectCode = "EC301"; regulation = "R-23"; classTest = "Semester"; blobRef = "sample-ece-r23-sem-2" },
+      { department = "ECE"; year = 4; semester = 7; subjectName = "VLSI Design"; subjectCode = "EC401"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-ece-r23-ct1-3" },
+      { department = "ECE"; year = 1; semester = 1; subjectName = "Basic Electrical Engineering"; subjectCode = "EC101"; regulation = "R-25"; classTest = "CT1"; blobRef = "sample-ece-r25-ct1-1" },
+      { department = "ECE"; year = 2; semester = 3; subjectName = "Analog Electronics"; subjectCode = "EC201"; regulation = "R-25"; classTest = "Semester"; blobRef = "sample-ece-r25-sem-1" },
+      { department = "ECE"; year = 3; semester = 5; subjectName = "Digital Signal Processing"; subjectCode = "EC301"; regulation = "R-25"; classTest = "CT1"; blobRef = "sample-ece-r25-ct1-1" },
+      // ── EE ──
+      { department = "EE"; year = 1; semester = 1; subjectName = "Electrical Engineering Basics"; subjectCode = "EE101"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-ee-r23-ct1-1" },
+      { department = "EE"; year = 2; semester = 3; subjectName = "Network Theory"; subjectCode = "EE201"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-ee-r23-ct1-2" },
+      { department = "EE"; year = 2; semester = 3; subjectName = "Network Theory"; subjectCode = "EE201"; regulation = "R-23"; classTest = "Semester"; blobRef = "sample-ee-r23-sem-1" },
+      { department = "EE"; year = 3; semester = 5; subjectName = "Power Systems"; subjectCode = "EE301"; regulation = "R-23"; classTest = "CT2"; blobRef = "sample-ee-r23-ct2-1" },
+      { department = "EE"; year = 3; semester = 5; subjectName = "Power Systems"; subjectCode = "EE301"; regulation = "R-23"; classTest = "Semester"; blobRef = "sample-ee-r23-sem-2" },
+      { department = "EE"; year = 4; semester = 7; subjectName = "Power Electronics"; subjectCode = "EE401"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-ee-r23-ct1-3" },
+      { department = "EE"; year = 1; semester = 1; subjectName = "Electrical Engineering Basics"; subjectCode = "EE101"; regulation = "R-25"; classTest = "CT1"; blobRef = "sample-ee-r25-ct1-1" },
+      { department = "EE"; year = 2; semester = 3; subjectName = "Network Theory"; subjectCode = "EE201"; regulation = "R-25"; classTest = "Semester"; blobRef = "sample-ee-r25-sem-1" },
+      { department = "EE"; year = 3; semester = 5; subjectName = "Power Systems"; subjectCode = "EE301"; regulation = "R-25"; classTest = "CT1"; blobRef = "sample-ee-r25-ct1-1" },
+      // ── ME ──
+      { department = "ME"; year = 1; semester = 1; subjectName = "Engineering Mechanics"; subjectCode = "ME101"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-me-r23-ct1-1" },
+      { department = "ME"; year = 2; semester = 3; subjectName = "Thermodynamics"; subjectCode = "ME201"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-me-r23-ct1-2" },
+      { department = "ME"; year = 2; semester = 3; subjectName = "Thermodynamics"; subjectCode = "ME201"; regulation = "R-23"; classTest = "Semester"; blobRef = "sample-me-r23-sem-1" },
+      { department = "ME"; year = 3; semester = 5; subjectName = "Fluid Mechanics"; subjectCode = "ME301"; regulation = "R-23"; classTest = "CT2"; blobRef = "sample-me-r23-ct2-1" },
+      { department = "ME"; year = 3; semester = 5; subjectName = "Fluid Mechanics"; subjectCode = "ME301"; regulation = "R-23"; classTest = "Semester"; blobRef = "sample-me-r23-sem-2" },
+      { department = "ME"; year = 4; semester = 7; subjectName = "Machine Design"; subjectCode = "ME401"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-me-r23-ct1-3" },
+      { department = "ME"; year = 1; semester = 1; subjectName = "Engineering Mechanics"; subjectCode = "ME101"; regulation = "R-25"; classTest = "CT1"; blobRef = "sample-me-r25-ct1-1" },
+      { department = "ME"; year = 2; semester = 3; subjectName = "Thermodynamics"; subjectCode = "ME201"; regulation = "R-25"; classTest = "Semester"; blobRef = "sample-me-r25-sem-1" },
+      { department = "ME"; year = 3; semester = 5; subjectName = "Fluid Mechanics"; subjectCode = "ME301"; regulation = "R-25"; classTest = "CT1"; blobRef = "sample-me-r25-ct1-1" },
+      // ── CE ──
+      { department = "CE"; year = 1; semester = 1; subjectName = "Engineering Graphics"; subjectCode = "CE101"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-ce-r23-ct1-1" },
+      { department = "CE"; year = 2; semester = 3; subjectName = "Strength of Materials"; subjectCode = "CE201"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-ce-r23-ct1-2" },
+      { department = "CE"; year = 2; semester = 3; subjectName = "Strength of Materials"; subjectCode = "CE201"; regulation = "R-23"; classTest = "Semester"; blobRef = "sample-ce-r23-sem-1" },
+      { department = "CE"; year = 3; semester = 5; subjectName = "Structural Analysis"; subjectCode = "CE301"; regulation = "R-23"; classTest = "CT2"; blobRef = "sample-ce-r23-ct2-1" },
+      { department = "CE"; year = 3; semester = 5; subjectName = "Structural Analysis"; subjectCode = "CE301"; regulation = "R-23"; classTest = "Semester"; blobRef = "sample-ce-r23-sem-2" },
+      { department = "CE"; year = 4; semester = 7; subjectName = "Geotechnical Engineering"; subjectCode = "CE401"; regulation = "R-23"; classTest = "CT1"; blobRef = "sample-ce-r23-ct1-3" },
+      { department = "CE"; year = 1; semester = 1; subjectName = "Engineering Graphics"; subjectCode = "CE101"; regulation = "R-25"; classTest = "CT1"; blobRef = "sample-ce-r25-ct1-1" },
+      { department = "CE"; year = 2; semester = 3; subjectName = "Strength of Materials"; subjectCode = "CE201"; regulation = "R-25"; classTest = "Semester"; blobRef = "sample-ce-r25-sem-1" },
+      { department = "CE"; year = 3; semester = 5; subjectName = "Structural Analysis"; subjectCode = "CE301"; regulation = "R-25"; classTest = "CT1"; blobRef = "sample-ce-r25-ct1-1" },
+    ];
+
+    let seedUploader = Principal.fromText("2vxsx-fae"); // anonymous principal placeholder
+    for (seed in studyMaterialSeeds.values()) {
+      let input : StudyMaterialsTypes.CreateStudyMaterialInput = {
+        department = seed.department;
+        year = seed.year;
+        semester = seed.semester;
+        subjectName = seed.subjectName;
+        subjectCode = seed.subjectCode;
+        regulation = seed.regulation;
+        classTest = seed.classTest;
+        blobRef = seed.blobRef;
+      };
+      switch (StudyMaterialsLib.createStudyMaterial(studyMaterials, nextStudyMaterialId[0], input, seedUploader)) {
+        case (#ok(_)) { nextStudyMaterialId[0] += 1 };
         case (#err(_)) {};
       };
     };

@@ -173,7 +173,71 @@ export type TranslationKey =
   | "enquirySuccess"
   | "enquirySuccessMsg"
   | "contactUs"
-  | "whatsappChat";
+  | "whatsappChat"
+  // ─── Study Materials keys ───────────────────────────────────────────────────
+  | "studyMaterials"
+  | "studyMaterialsSubtitle"
+  | "filterByDepartment"
+  | "filterByYear"
+  | "filterBySemester"
+  | "filterBySubject"
+  | "filterByRegulation"
+  | "filterByClassTest"
+  | "departmentCSE"
+  | "departmentECE"
+  | "departmentEE"
+  | "departmentME"
+  | "departmentCE"
+  | "year1"
+  | "year2"
+  | "year3"
+  | "year4"
+  | "semester1"
+  | "semester2"
+  | "semester3"
+  | "semester4"
+  | "semester5"
+  | "semester6"
+  | "semester7"
+  | "semester8"
+  | "regulationR23"
+  | "regulationR25"
+  | "classTestCT1"
+  | "classTestCT2"
+  | "classTestSemester"
+  | "download"
+  | "downloadPdf"
+  | "noPdfsFound"
+  | "noPdfsFoundHint"
+  | "searchBySubjectOrCode"
+  | "uploadPdf"
+  | "uploadNewPdf"
+  | "selectDepartment"
+  | "selectYear"
+  | "selectSemester"
+  | "enterSubjectName"
+  | "enterSubjectCode"
+  | "selectRegulation"
+  | "selectClassTest"
+  | "choosePdfFile"
+  | "uploading"
+  | "uploadSuccess"
+  | "uploadFailed"
+  | "managePdfs"
+  | "editMetadata"
+  | "deletePdf"
+  | "confirmDelete"
+  | "pdfDeleted"
+  | "totalPdfs"
+  | "adminOnly"
+  | "subjectName"
+  | "subjectCode"
+  | "allDepartments"
+  | "allYears"
+  | "allSemesters"
+  | "allRegulations"
+  | "allClassTests"
+  | "resultsCount";
 
 const translations: Record<TranslationKey, Record<Lang, string>> = {
   home: { en: "Home", bn: "হোম" },
@@ -430,6 +494,82 @@ const translations: Record<TranslationKey, Record<Lang, string>> = {
   },
   contactUs: { en: "Contact Us", bn: "যোগাযোগ করুন" },
   whatsappChat: { en: "Chat on WhatsApp", bn: "হোয়াটসঅ্যাপে চ্যাট করুন" },
+  // ─── Study Materials keys ───────────────────────────────────────────────────
+  studyMaterials: { en: "Study Materials", bn: "স্টাডি ম্যাটেরিয়ালস" },
+  studyMaterialsSubtitle: {
+    en: "Browse and download class test PDFs by department, year, semester, and regulation.",
+    bn: "বিভাগ, বর্ষ, সেমিস্টার এবং রেগুলেশন অনুযায়ী ক্লাস টেস্ট পিডিএফ ব্রাউজ এবং ডাউনলোড করুন।",
+  },
+  filterByDepartment: { en: "Department", bn: "বিভাগ" },
+  filterByYear: { en: "Year", bn: "বর্ষ" },
+  filterBySemester: { en: "Semester", bn: "সেমিস্টার" },
+  filterBySubject: { en: "Subject", bn: "বিষয়" },
+  filterByRegulation: { en: "Regulation", bn: "রেগুলেশন" },
+  filterByClassTest: { en: "Class Test", bn: "ক্লাস টেস্ট" },
+  departmentCSE: { en: "CSE", bn: "সিএসই" },
+  departmentECE: { en: "ECE", bn: "ইসিই" },
+  departmentEE: { en: "EE", bn: "ইই" },
+  departmentME: { en: "ME", bn: "এমই" },
+  departmentCE: { en: "CE", bn: "সিই" },
+  year1: { en: "Year 1", bn: "প্রথম বর্ষ" },
+  year2: { en: "Year 2", bn: "দ্বিতীয় বর্ষ" },
+  year3: { en: "Year 3", bn: "তৃতীয় বর্ষ" },
+  year4: { en: "Year 4", bn: "চতুর্থ বর্ষ" },
+  semester1: { en: "Semester 1", bn: "সেমিস্টার ১" },
+  semester2: { en: "Semester 2", bn: "সেমিস্টার ২" },
+  semester3: { en: "Semester 3", bn: "সেমিস্টার ৩" },
+  semester4: { en: "Semester 4", bn: "সেমিস্টার ৪" },
+  semester5: { en: "Semester 5", bn: "সেমিস্টার ৫" },
+  semester6: { en: "Semester 6", bn: "সেমিস্টার ৬" },
+  semester7: { en: "Semester 7", bn: "সেমিস্টার ৭" },
+  semester8: { en: "Semester 8", bn: "সেমিস্টার ৮" },
+  regulationR23: { en: "R-23", bn: "আর-২৩" },
+  regulationR25: { en: "R-25", bn: "আর-২৫" },
+  classTestCT1: { en: "CT1", bn: "সিটি১" },
+  classTestCT2: { en: "CT2", bn: "সিটি২" },
+  classTestSemester: { en: "Semester", bn: "সেমিস্টার" },
+  download: { en: "Download", bn: "ডাউনলোড" },
+  downloadPdf: { en: "Download PDF", bn: "পিডিএফ ডাউনলোড করুন" },
+  noPdfsFound: { en: "No PDFs found", bn: "কোনো পিডিএফ পাওয়া যায়নি" },
+  noPdfsFoundHint: {
+    en: "Try adjusting your filters or check back later.",
+    bn: "আপনার ফিল্টার পরিবর্তন করে দেখুন বা পরে আবার চেক করুন।",
+  },
+  searchBySubjectOrCode: {
+    en: "Search by subject or code...",
+    bn: "বিষয় বা কোড দিয়ে খুঁজুন...",
+  },
+  uploadPdf: { en: "Upload PDF", bn: "পিডিএফ আপলোড করুন" },
+  uploadNewPdf: { en: "Upload New PDF", bn: "নতুন পিডিএফ আপলোড করুন" },
+  selectDepartment: { en: "Select department", bn: "বিভাগ নির্বাচন করুন" },
+  selectYear: { en: "Select year", bn: "বর্ষ নির্বাচন করুন" },
+  selectSemester: { en: "Select semester", bn: "সেমিস্টার নির্বাচন করুন" },
+  enterSubjectName: { en: "Enter subject name", bn: "বিষয়ের নাম লিখুন" },
+  enterSubjectCode: { en: "Enter subject code", bn: "বিষয় কোড লিখুন" },
+  selectRegulation: { en: "Select regulation", bn: "রেগুলেশন নির্বাচন করুন" },
+  selectClassTest: { en: "Select class test", bn: "ক্লাস টেস্ট নির্বাচন করুন" },
+  choosePdfFile: { en: "Choose PDF file", bn: "পিডিএফ ফাইল নির্বাচন করুন" },
+  uploading: { en: "Uploading...", bn: "আপলোড হচ্ছে..." },
+  uploadSuccess: { en: "Upload successful!", bn: "আপলোড সফল হয়েছে!" },
+  uploadFailed: { en: "Upload failed", bn: "আপলোড ব্যর্থ হয়েছে" },
+  managePdfs: { en: "Manage PDFs", bn: "পিডিএফ পরিচালনা" },
+  editMetadata: { en: "Edit Metadata", bn: "মেটাডেটা সম্পাদনা" },
+  deletePdf: { en: "Delete PDF", bn: "পিডিএফ মুছুন" },
+  confirmDelete: {
+    en: "Are you sure you want to delete this PDF?",
+    bn: "আপনি কি এই পিডিএফটি মুছতে চান?",
+  },
+  pdfDeleted: { en: "PDF deleted", bn: "পিডিএফ মুছে ফেলা হয়েছে" },
+  totalPdfs: { en: "Total PDFs", bn: "মোট পিডিএফ" },
+  adminOnly: { en: "Admin only", bn: "শুধু অ্যাডমিন" },
+  subjectName: { en: "Subject Name", bn: "বিষয়ের নাম" },
+  subjectCode: { en: "Subject Code", bn: "বিষয় কোড" },
+  allDepartments: { en: "All Departments", bn: "সব বিভাগ" },
+  allYears: { en: "All Years", bn: "সব বর্ষ" },
+  allSemesters: { en: "All Semesters", bn: "সব সেমিস্টার" },
+  allRegulations: { en: "All Regulations", bn: "সব রেগুলেশন" },
+  allClassTests: { en: "All Class Tests", bn: "সব ক্লাস টেস্ট" },
+  resultsCount: { en: "{count} results", bn: "{count}টি ফলাফল" },
 };
 
 export function t(key: TranslationKey, lang: Lang): string {

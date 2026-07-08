@@ -268,7 +268,7 @@ module {
     if (offset >= total) return [];
     let end = Nat.min(offset + limit, total);
     let slice = sorted.sliceToArray(offset, end);
-    slice.map<CatalogTypes.Product, CatalogTypes.ProductView>(toView);
+    slice.map(toView);
   };
 
   public func getProduct(
@@ -529,7 +529,7 @@ module {
   ) {
     let existing : List.List<Common.ProductId> = switch (recentlyViewed.get(userId)) {
       case (?list) list;
-      case null List.empty<Common.ProductId>();
+      case null List.empty();
     };
     let deduped = existing.filter(func(pid) { pid != productId });
     let newList = List.empty<Common.ProductId>();

@@ -149,6 +149,16 @@ export default {
           "0%, 100%": { boxShadow: "0 4px 12px oklch(var(--accent) / 0.4)" },
           "50%": { boxShadow: "0 4px 20px oklch(var(--accent) / 0.6)" },
         },
+        // Study Materials — upload progress shimmer
+        uploadProgressShimmer: {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
+        // Study Materials — cascading filter chip entrance
+        chipEnter: {
+          from: { opacity: "0", transform: "translateY(6px) scale(0.96)" },
+          to: { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -161,6 +171,8 @@ export default {
         pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         spin: "spin 0.8s linear infinite",
         "pulse-soft": "pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "upload-progress-shimmer": "uploadProgressShimmer 1.8s ease-in-out infinite",
+        "chip-enter": "chipEnter 0.25s cubic-bezier(0.16, 1, 0.3, 1) both",
       },
       spacing: {
         18: "4.5rem",

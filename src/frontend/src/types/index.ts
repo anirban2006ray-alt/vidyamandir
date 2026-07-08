@@ -24,3 +24,15 @@ export interface NavItem {
   href: string;
   icon?: string;
 }
+
+/** Frontend-friendly StudyMaterial filter shape.
+ *  Mirrors the backend StudyMaterialFilter but uses plain numbers for
+ *  year/semester so the UI can work with form values without bigint casts. */
+export interface StudyMaterialFilters {
+  department?: string;
+  year?: number;
+  semester?: number;
+  regulation?: string;
+  classTest?: string;
+  subjectCode?: string;
+}

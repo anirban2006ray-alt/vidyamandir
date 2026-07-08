@@ -346,7 +346,7 @@ module {
     promoCodes : Map.Map<Text, OrderTypes.PromoCode>,
   ) : [OrderTypes.PromoCode] {
     promoCodes.entries()
-      .map<(Text, OrderTypes.PromoCode), OrderTypes.PromoCode>(func((_, p)) { p })
+      .map(func((_, p)) { p })
       .toArray();
   };
 
@@ -361,7 +361,7 @@ module {
           case (_) false;
         }
       })
-      .map<(Common.OrderId, OrderTypes.Order), OrderTypes.Order>(func((_, o)) { o })
+      .map(func((_, o)) { o })
       .toArray();
   };
 
@@ -394,7 +394,7 @@ module {
       };
     });
     acc.entries()
-      .map<(Common.ProductId, (Text, Nat, Nat)), OrderTypes.OrderedQuantityItem>(func((productId, (productTitle, totalOrdered, totalRevenue))) {
+      .map(func((productId, (productTitle, totalOrdered, totalRevenue))) {
         { productId; productTitle; totalOrdered; totalRevenue };
       })
       .toArray();

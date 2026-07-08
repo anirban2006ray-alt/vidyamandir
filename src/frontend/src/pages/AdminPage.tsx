@@ -26,6 +26,7 @@ import {
   CheckCircle2,
   Edit2,
   Eye,
+  FileText,
   FlameIcon,
   Inbox,
   ListOrdered,
@@ -63,6 +64,7 @@ import type {
 
 import { ThankYouImage } from "../components/FloatingEnquiry";
 import { LoadingSpinner } from "../components/LoadingSpinner";
+import { StudyMaterialsTab } from "../components/StudyMaterialsTab";
 import { useAuth, useIsAdmin } from "../hooks/use-auth";
 import { useLanguage } from "../hooks/use-language";
 import {
@@ -2842,6 +2844,7 @@ export default function AdminPage() {
     { value: "promo-codes", icon: Tag, label: "Promo Codes" },
     { value: "qty-report", icon: ListOrdered, label: "Qty Report" },
     { value: "bulk-import", icon: Upload, label: "Bulk Import" },
+    { value: "study-materials", icon: FileText, label: "Study Materials" },
   ];
 
   return (
@@ -2990,6 +2993,10 @@ export default function AdminPage() {
 
         <TabsContent value="bulk-import">
           <BulkImportTab />
+        </TabsContent>
+
+        <TabsContent value="study-materials">
+          <StudyMaterialsTab />
         </TabsContent>
       </Tabs>
 

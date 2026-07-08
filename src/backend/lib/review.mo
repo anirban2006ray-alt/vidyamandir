@@ -147,7 +147,7 @@ module {
   ) : [ReviewTypes.Review] {
     reviews.entries()
       .filter(func((_, r)) { r.productId == productId })
-      .map<(Common.ReviewId, ReviewTypes.ReviewInternal), ReviewTypes.Review>(func((_, r)) { reviewToPublic(r) })
+      .map(func((_, r)) { reviewToPublic(r) })
       .toArray();
   };
 
@@ -159,13 +159,13 @@ module {
     let filtered = listReviews(reviews, productId);
     switch sortMode {
       case (#helpfulness) {
-        filtered.sort<ReviewTypes.Review>(func(a, b) { Nat.compare(b.helpfulVotes, a.helpfulVotes) });
+        filtered.sort(func(a, b) { Nat.compare(b.helpfulVotes, a.helpfulVotes) });
       };
       case (#recency) {
-        filtered.sort<ReviewTypes.Review>(func(a, b) { Int.compare(b.createdAt, a.createdAt) });
+        filtered.sort(func(a, b) { Int.compare(b.createdAt, a.createdAt) });
       };
       case (#rating) {
-        filtered.sort<ReviewTypes.Review>(func(a, b) { Nat.compare(b.rating, a.rating) });
+        filtered.sort(func(a, b) { Nat.compare(b.rating, a.rating) });
       };
     };
   };
@@ -239,7 +239,7 @@ module {
       bodyEn = cleanBody;
       isVerifiedPurchase = isVerified;
       helpfulVotes = 0;
-      helpfulVoters = Set.empty<Common.UserId>();
+      helpfulVoters = Set.empty();
       isApproved = true;
       createdAt = Time.now();
     };
@@ -276,7 +276,7 @@ module {
   ) : [ReviewTypes.Question] {
     questions.entries()
       .filter(func((_, q)) { q.productId == productId })
-      .map<(Common.QuestionId, ReviewTypes.Question), ReviewTypes.Question>(func((_, q)) { q })
+      .map(func((_, q)) { q })
       .toArray();
   };
 
@@ -313,7 +313,7 @@ module {
   ) : [ReviewTypes.Answer] {
     answers.entries()
       .filter(func((_, a)) { a.questionId == questionId })
-      .map<(Common.AnswerId, ReviewTypes.AnswerInternal), ReviewTypes.Answer>(func((_, a)) { answerToPublic(a) })
+      .map(func((_, a)) { answerToPublic(a) })
       .toArray();
   };
 
@@ -344,7 +344,7 @@ module {
       answeredBy = userId;
       answerText;
       helpfulVotes = 0;
-      helpfulVoters = Set.empty<Common.UserId>();
+      helpfulVoters = Set.empty();
       createdAt = Time.now();
     };
     answers.add(nextId, answer);
@@ -381,7 +381,7 @@ module {
   ) : [ReviewTypes.Review] {
     reviews.entries()
       .filter(func((_, r)) { Principal.equal(r.userId, userId) })
-      .map<(Common.ReviewId, ReviewTypes.ReviewInternal), ReviewTypes.Review>(func((_, r)) { reviewToPublic(r) })
+      .map(func((_, r)) { reviewToPublic(r) })
       .toArray();
   };
 
@@ -413,7 +413,7 @@ module {
     let all = reviews.entries()
       .map(func((_, r)) { reviewToAdminView(r) })
       .toArray();
-    all.sort<ReviewTypes.AdminReviewView>(func(a, b) { Int.compare(b.createdAt, a.createdAt) });
+    all.sort(func(a, b) { Int.compare(b.createdAt, a.createdAt) });
   };
 
   /// Delete a review by ID. Returns true if deleted, false if not found.

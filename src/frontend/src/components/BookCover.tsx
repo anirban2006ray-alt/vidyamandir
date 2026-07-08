@@ -43,50 +43,35 @@ export function BookCover({
   if (showFallback) {
     return (
       <div
-        className={`${wrapperClass} flex flex-col items-center justify-center p-2 select-none`}
-        style={{
-          background: "#0A1628",
-          borderRadius: "inherit",
-        }}
+        className={`${wrapperClass} relative flex flex-col items-center justify-center p-3 select-none overflow-hidden bg-[#0A1628]`}
+        style={{ borderRadius: "inherit", minHeight: 160 }}
         aria-label={title}
       >
-        {/* Top accent line */}
-        <div
-          className="absolute top-0 left-0 right-0 h-1"
-          style={{
-            background: "linear-gradient(90deg, #F97316, #ea6e0e)",
-            borderRadius: "inherit inherit 0 0",
-          }}
-        />
+        {/* Top accent bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-orange-600" />
+        {/* Subtle spine lines */}
+        <div className="absolute left-0 top-4 bottom-4 w-[3px] bg-orange-500 opacity-35" />
+        {/* Title */}
         <p
-          className="font-display font-bold text-center leading-snug line-clamp-4 px-1"
+          className="font-display font-bold text-center leading-snug line-clamp-5 px-2 text-orange-500"
           style={{
-            color: "#F97316",
-            fontSize: "clamp(8px, 2.2vw, 13px)",
+            fontSize: "clamp(9px, 2.4vw, 14px)",
             letterSpacing: "-0.01em",
+            marginBottom: author ? "0.5rem" : 0,
           }}
         >
           {title}
         </p>
         {author && (
           <p
-            className="mt-1.5 text-center leading-tight line-clamp-2 px-1"
-            style={{
-              color: "#ffffff",
-              fontSize: "clamp(6px, 1.7vw, 10px)",
-              opacity: 0.75,
-            }}
+            className="text-center leading-tight line-clamp-2 px-2 text-[#e2d5c8] opacity-70"
+            style={{ fontSize: "clamp(7px, 1.8vw, 11px)" }}
           >
             {author}
           </p>
         )}
-        {/* Bottom line */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-0.5"
-          style={{
-            background: "linear-gradient(90deg, #F97316 0%, transparent 100%)",
-          }}
-        />
+        {/* Bottom accent line */}
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-orange-500 to-transparent" />
       </div>
     );
   }

@@ -50,6 +50,7 @@ export function Footer() {
   const quickLinks = [
     { label: t("shop"), href: "/shop" },
     { label: t("flashSales"), href: "/flash-sales" },
+    { label: t("studyMaterials"), href: "/study-materials" },
     { label: t("myOrders"), href: "/orders" },
     { label: t("account"), href: "/account" },
     { label: t("wishlist"), href: "/wishlist" },

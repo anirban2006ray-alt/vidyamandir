@@ -27,6 +27,16 @@ type UserProfile =
                       };
  };
 type UserId = principal;
+type UpdateStudyMaterialMetadataInput = 
+ record {
+   classTest: opt text;
+   department: opt text;
+   regulation: opt text;
+   semester: opt nat;
+   subjectCode: opt text;
+   subjectName: opt text;
+   year: opt nat;
+ };
 type UpdateProductInput = 
  record {
    coverImageUrl: opt text;
@@ -52,6 +62,29 @@ type TransformationInput =
    response: http_request_result;
  };
 type Timestamp = int;
+type StudyMaterialFilter = 
+ record {
+   classTest: opt text;
+   department: opt text;
+   regulation: opt text;
+   semester: opt nat;
+   subjectCode: opt text;
+   year: opt nat;
+ };
+type StudyMaterial = 
+ record {
+   blobRef: text;
+   classTest: text;
+   department: text;
+   id: text;
+   regulation: text;
+   semester: nat;
+   subjectCode: text;
+   subjectName: text;
+   uploadedAt: Timestamp;
+   uploadedBy: principal;
+   year: nat;
+ };
 type StripeSessionStatus = 
  variant {
    completed: record {
@@ -188,6 +221,20 @@ type PagedResult =
    items: vec AdminReviewView;
    totalCount: nat;
  };
+type OtpVerifyResult = 
+ variant {
+   err: variant {
+          expired;
+          invalidOtp: nat;
+          tooManyAttempts;
+        };
+   ok;
+ };
+type OtpResult = 
+ variant {
+   err: text;
+   ok: record {code: text;};
+ };
 type OrderedQuantityItem = 
  record {
    productId: ProductId;
@@ -288,6 +335,17 @@ type Enquiry =
    phone: text;
    status: EnquiryStatus;
    submittedAt: Timestamp;
+ };
+type CreateStudyMaterialInput = 
+ record {
+   blobRef: text;
+   classTest: text;
+   department: text;
+   regulation: text;
+   semester: nat;
+   subjectCode: text;
+   subjectName: text;
+   year: nat;
  };
 type CreateReviewInput = 
  record {
@@ -496,6 +554,11 @@ service : {
       err: AppError;
       ok: ReviewId;
     });
+  createStudyMaterial: (input: CreateStudyMaterialInput) ->
+   (variant {
+      err: AppError;
+      ok: StudyMaterial;
+    });
   deactivateFlashSale: (id: FlashSaleId) -> (bool);
   deactivatePromoCode: (code: text) -> (bool);
   deleteAddress: (addressId: AddressId) -> (bool);
@@ -505,7 +568,9 @@ service : {
                                              ok: bool;
                                            });
   deleteProduct: (id: ProductId) -> (bool);
+  deleteStudyMaterial: (id: text) -> (bool);
   downloadInvoice: (orderId: OrderId) -> (text) query;
+  generateOtp: () -> (OtpResult);
   getAdminAnalytics: () -> (AdminAnalytics);
   getAnalyticsEvents: (offset: nat, limit: nat) -> (vec AnalyticsEvent) query;
   getBestsellers: () -> (vec ProductView) query;
@@ -528,6 +593,11 @@ service : {
   getRecentlyViewed: () -> (vec ProductView) query;
   getReview: (id: ReviewId) -> (opt Review) query;
   getStripeSessionStatus: (sessionId: text) -> (StripeSessionStatus);
+  getStudyMaterial: (id: text) -> (opt StudyMaterial) query;
+  getStudyMaterialDownloadStats: () -> (vec record {
+                                              text;
+                                              nat;
+                                            }) query;
   getTopProducts: (limit: nat) -> (vec ProductView) query;
   getUserProfile: (user: UserId) -> (opt UserProfile) query;
   getWishlist: () -> (vec ProductId) query;
@@ -540,6 +610,7 @@ service : {
   listAllReturns: () -> (vec Order) query;
   listAllReviews: () -> (vec AdminReviewView) query;
   listAllReviewsPaged: (offset: nat, limit: nat) -> (PagedResult) query;
+  listAllStudyMaterials: () -> (vec StudyMaterial) query;
   listAnswers: (questionId: QuestionId) -> (vec Answer) query;
   listFlashSales: (activeOnly: bool) -> (vec FlashSaleView) query;
   listMyOrders: () -> (vec Order) query;
@@ -555,6 +626,8 @@ service : {
      rating;
      recency;
    }) -> (vec Review) query;
+  listStudyMaterials: (filter: opt StudyMaterialFilter) ->
+   (vec StudyMaterial) query;
   ping: () -> (bool) query;
   postAnswer: (questionId: QuestionId, answerText: text) ->
    (variant {
@@ -569,6 +642,7 @@ service : {
     });
   recordDownload: (platform: text) -> ();
   recordRecentlyViewed: (productId: ProductId) -> ();
+  recordStudyMaterialDownload: (id: text) -> ();
   refreshBestsellersCache: () -> (nat);
   removeFromCart: (productId: ProductId) -> ();
   removeFromWishlist: (productId: ProductId) -> ();
@@ -624,7 +698,14 @@ service : {
       ok: bool;
     });
   updateStock: (id: ProductId, delta: int) -> (bool);
+  updateStudyMaterialMetadata: (id: text, input:
+   UpdateStudyMaterialMetadataInput) ->
+   (variant {
+      err: AppError;
+      ok: StudyMaterial;
+    });
   validatePromoCode: (code: text) -> (opt PromoCode) query;
+  verifyOtp: (code: text) -> (OtpVerifyResult);
   voteAnswerHelpful: (answerId: AnswerId) ->
    (variant {
       err: AppError;

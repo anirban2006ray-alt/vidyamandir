@@ -142,7 +142,7 @@ module {
       .map(func((_, e) : (Text, EnquiryTypes.Enquiry)) : EnquiryTypes.Enquiry { e })
       .toArray();
     // Sort by submittedAt descending (newest first)
-    all.sort<EnquiryTypes.Enquiry>(func(a, b) {
+    all.sort(func(a, b) {
       if (a.submittedAt > b.submittedAt) #less
       else if (a.submittedAt < b.submittedAt) #greater
       else #equal

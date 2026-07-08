@@ -548,6 +548,167 @@
     animation: micPulse 1.2s ease-out infinite;
   }
 
+  /* === Study Materials — Filter Chips === */
+  .chip-filter {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition-smooth;
+    background: oklch(var(--muted) / 0.35);
+    border-color: oklch(var(--border) / 0.6);
+    color: oklch(var(--muted-foreground));
+  }
+  .chip-filter:hover {
+    border-color: oklch(var(--accent) / 0.55);
+    color: oklch(var(--foreground));
+    background: oklch(var(--muted) / 0.55);
+  }
+  .chip-filter[data-active="true"] {
+    background: oklch(var(--accent));
+    border-color: oklch(var(--accent));
+    color: oklch(var(--accent-foreground));
+    box-shadow: 0 2px 8px oklch(var(--accent) / 0.35);
+  }
+  .chip-filter[data-active="true"]:hover {
+    background: oklch(0.78 0.26 40);
+    border-color: oklch(0.78 0.26 40);
+  }
+
+  /* Filter group label */
+  .filter-group-label {
+    @apply text-[11px] font-mono font-semibold uppercase tracking-[0.12em];
+    color: oklch(var(--muted-foreground));
+    letter-spacing: 0.12em;
+  }
+
+  /* Filter sidebar panel */
+  .filter-sidebar {
+    @apply bg-card border border-border rounded-xl p-5 space-y-5;
+    box-shadow: var(--shadow-card);
+  }
+
+  /* === Study Materials — PDF Cards === */
+  .pdf-card {
+    @apply relative flex flex-col bg-card border border-border rounded-xl overflow-hidden;
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+  }
+  .pdf-card:hover {
+    box-shadow: var(--shadow-elevated);
+    transform: translateY(-2px);
+  }
+  /* Accent stripe on the left edge — orange for active, navy by default */
+  .pdf-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: oklch(var(--accent));
+    opacity: 0.85;
+  }
+  .pdf-card-thumb {
+    @apply relative flex items-center justify-center bg-muted/30;
+    aspect-ratio: 4 / 3;
+    background-image: linear-gradient(
+      135deg,
+      oklch(var(--muted) / 0.4) 0%,
+      oklch(var(--card)) 100%
+    );
+  }
+  .pdf-card-thumb-icon {
+    @apply w-12 h-12 flex items-center justify-center rounded-lg;
+    color: oklch(var(--accent));
+    background: oklch(var(--card) / 0.7);
+    box-shadow: var(--shadow-subtle);
+  }
+  .pdf-meta-grid {
+    @apply grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs;
+  }
+  .pdf-meta-key {
+    @apply font-mono uppercase tracking-wide text-[10px];
+    color: oklch(var(--muted-foreground));
+  }
+  .pdf-meta-val {
+    @apply font-medium text-right;
+    color: oklch(var(--foreground));
+  }
+  .pdf-download-btn {
+    @apply flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-semibold rounded-lg transition-smooth;
+    background: linear-gradient(
+      135deg,
+      oklch(var(--accent)),
+      oklch(0.58 0.27 38)
+    );
+    color: oklch(var(--accent-foreground));
+    box-shadow: 0 2px 8px oklch(var(--accent) / 0.3);
+  }
+  .pdf-download-btn:hover {
+    box-shadow: 0 4px 16px oklch(var(--accent) / 0.5);
+    transform: translateY(-1px);
+  }
+  .pdf-download-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px oklch(var(--accent) / 0.3);
+  }
+
+  /* === Study Materials — Upload Dropzone === */
+  .upload-dropzone {
+    @apply relative flex flex-col items-center justify-center gap-3 px-6 py-10 text-center border-2 border-dashed rounded-xl transition-smooth;
+    border-color: oklch(var(--border));
+    background: oklch(var(--muted) / 0.18);
+  }
+  .upload-dropzone:hover {
+    border-color: oklch(var(--accent) / 0.6);
+    background: oklch(var(--muted) / 0.3);
+  }
+  .upload-dropzone[data-dragging="true"] {
+    border-color: oklch(var(--accent));
+    background: oklch(var(--accent) / 0.1);
+    box-shadow: 0 0 0 4px oklch(var(--accent) / 0.12), var(--shadow-elevated);
+    transform: scale(1.005);
+  }
+  .upload-dropzone-icon {
+    @apply w-14 h-14 flex items-center justify-center rounded-full;
+    color: oklch(var(--accent));
+    background: oklch(var(--accent) / 0.12);
+    border: 1px solid oklch(var(--accent) / 0.3);
+    transition: transform 0.25s ease;
+  }
+  .upload-dropzone[data-dragging="true"] .upload-dropzone-icon {
+    transform: scale(1.08);
+  }
+
+  /* Upload progress bar */
+  .upload-progress-track {
+    @apply w-full h-1.5 rounded-full overflow-hidden;
+    background: oklch(var(--muted) / 0.5);
+  }
+  .upload-progress-fill {
+    @apply h-full rounded-full;
+    background: linear-gradient(
+      90deg,
+      oklch(var(--accent)),
+      oklch(0.78 0.26 40)
+    );
+    box-shadow: 0 0 8px oklch(var(--accent) / 0.4);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: uploadProgressShimmer 1.8s ease-in-out infinite;
+  }
+
+  /* Admin PDF list row */
+  .pdf-admin-row {
+    @apply flex items-center gap-3 px-4 py-3 bg-card border border-border rounded-lg transition-colors-fast;
+  }
+  .pdf-admin-row:hover {
+    border-color: oklch(var(--accent) / 0.45);
+    background: oklch(var(--muted) / 0.25);
+  }
+
+  /* Empty state for filtered results */
+  .pdf-empty-state {
+    @apply flex flex-col items-center justify-center gap-3 py-16 text-center;
+    color: oklch(var(--muted-foreground));
+  }
+
   /* Reduce motion support */
   @media (prefers-reduced-motion: reduce) {
     .transition-smooth,
@@ -564,7 +725,13 @@
     .animate-mic-pulse,
     .pwa-card,
     .chatbox-trigger,
-    .chatbox-dialog {
+    .chatbox-dialog,
+    .chip-filter,
+    .pdf-card,
+    .pdf-download-btn,
+    .upload-dropzone,
+    .upload-dropzone-icon,
+    .upload-progress-fill {
       transition: none !important;
       animation: none !important;
       transform: none !important;
@@ -769,5 +936,28 @@
   100% {
     transform: translateY(4px);
     opacity: 0;
+  }
+}
+
+/* Study Materials — upload progress shimmer overlay */
+@keyframes uploadProgressShimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Study Materials — filter chip entrance for cascading reveal */
+@keyframes chipEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }

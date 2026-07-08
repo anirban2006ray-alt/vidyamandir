@@ -55,6 +55,40 @@ Multi-tier shadow system: subtle (1px), card (4-6px), elevated (10-15px). Light 
 ## Signature Detail
 **Dark navy header** with centered logo + bilingual toggle drives bookshop identity. **Orange flash sale banner** with live countdown (Fraunces serif, 24px bold) signals urgency. **Refined card elevation** system (8-12px rounded corners, layered shadows) creates premium tactile feel. Product cards lift on hover, revealing depth. Navy + orange + refined shadows = editorial, local, premium, premium retail.
 
+## Study Materials — Question Papers (extension)
+Visual language for the new Study Materials / Question Papers section. Reuses existing navy/orange tokens — no new palette, no new fonts. Productivity-restraint density: filter-first layout, metadata-rich PDF cards, admin upload dropzone.
+
+### Layout
+- **Browse page**: 2-column → left `filter-sidebar` (sticky, 280px) + right PDF grid (1-col mobile, 2-col tablet, 3-col desktop)
+- **Cascading filters**: Department → Year → Semester → Subject → Regulation → Class Test, each a chip group with `chip-filter` pills; selections cascade (later groups populate from earlier picks)
+- **Admin tab**: `upload-dropzone` + form fields (subject, code, dept, year, sem, regulation, class test) + `pdf-admin-row` list with edit/delete
+
+### Component Patterns (new utilities)
+| Pattern | Class | Description |
+|---------|-------|-------------|
+| Filter chip | `chip-filter` | Pill, muted bg, orange fill when `[data-active=true]`, 0.2s transition |
+| Filter group label | `filter-group-label` | Mono uppercase 11px tracking, muted-foreground |
+| Filter sidebar | `filter-sidebar` | Card surface, 1px border, shadow-card, sticky on desktop |
+| PDF card | `pdf-card` | Card-elevation base, 3px orange left stripe, 4:3 thumb, metadata grid, full-width download btn |
+| PDF thumb | `pdf-card-thumb` + `pdf-card-thumb-icon` | Muted gradient bg, orange doc icon centered |
+| PDF metadata | `pdf-meta-grid` / `pdf-meta-key` / `pdf-meta-val` | 2-col grid, mono keys, right-aligned values |
+| PDF download | `pdf-download-btn` | Full-width orange gradient CTA, 32px height |
+| Upload dropzone | `upload-dropzone` | Dashed border, muted bg, orange glow on dragover via `[data-dragging=true]` |
+| Upload progress | `upload-progress-track` + `upload-progress-fill` | 6px track, gradient fill with shimmer animation |
+| Admin row | `pdf-admin-row` | Compact row, hover border-accent + muted bg |
+| Empty state | `pdf-empty-state` | Centered muted-foreground block |
+
+### Motion (new)
+- `chip-enter` (0.25s) — cascading reveal as filters populate after a parent selection
+- `upload-progress-shimmer` (1.8s) — animated gradient on the progress fill while uploading
+- Dropzone dragover: scale(1.005) + accent ring + icon scale, 0.25s ease
+- PDF card hover: same lift as `card-elevation` (shadow-card → shadow-elevated, translateY -2px)
+
+### Bilingual & Taxonomy
+- All filter labels and metadata keys render EN | BN via existing i18n flat map
+- Departments: CSE, ECE, EE, ME, CE | Regulations: R-23, R-25 | Class Tests: CT1, CT2, Semester
+- Subject codes use Geist Mono (`pdf-meta-key`) for scanability
+
 ## Constraints
 - Dark mode default; light mode via CSS class `.light`
 - Border radius: 0px header/footer/banner, 6-8px cards/inputs, 12px modals, 24px pills

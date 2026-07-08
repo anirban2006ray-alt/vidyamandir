@@ -18,6 +18,25 @@ module {
     loginAttemptWindowSeconds : Nat; // always 60 — tells frontend the window length without hardcoding
   };
 
+  /// OTP entry — stores a one-time passcode with TTL, attempt counter, and used flag.
+  /// TTL = 10 minutes (600_000_000_000 nanoseconds). Max 3 verification attempts.
+  public type OtpEntry = {
+    code : Text;      // 6-digit string, zero-padded
+    createdAt : Int;  // nanoseconds (Time.now())
+    expiresAt : Int;  // createdAt + 600_000_000_000
+    attempts : Nat;   // incremented on each failed verifyOtp call
+    used : Bool;      // true after a successful verification
+  };
+
+  /// Result of generateOtp.
+  public type OtpResult = { #ok : { code : Text }; #err : Text };
+
+  /// Result of verifyOtp.
+  public type OtpVerifyResult = {
+    #ok;                                       // verified successfully
+    #err : { #invalidOtp : Nat; #expired; #tooManyAttempts }; // attemptsRemaining for #invalidOtp
+  };
+
   public type UserProfile = {
     name : Text;
     email : Text;

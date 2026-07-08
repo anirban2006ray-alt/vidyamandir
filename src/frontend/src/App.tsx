@@ -4,11 +4,13 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
-  redirect,
 } from "@tanstack/react-router";
 import { Suspense, lazy } from "react";
+import type { ReactNode } from "react";
 import { Layout } from "./components/Layout";
 import { LoadingSpinner } from "./components/LoadingSpinner";
+import { OtpModal } from "./components/OtpModal";
+import { useAuth } from "./hooks/use-auth";
 import { CartProvider } from "./hooks/use-cart";
 import { LanguageProvider } from "./hooks/use-language";
 
@@ -25,17 +27,57 @@ const AccountPage = lazy(() => import("./pages/AccountPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const CheckoutPage = lazy(() => import("./pages/CheckoutPage"));
 const DownloadPage = lazy(() => import("./pages/DownloadPage"));
+const StudyMaterialsPage = lazy(() => import("./pages/StudyMaterialsPage"));
+
+// OTP Gate — wraps the whole app after Internet Identity auth
+function OtpGate({ children }: { children: ReactNode }) {
+  const {
+    needsOtpVerification,
+    otpCode,
+    isGeneratingOtp,
+    isVerifyingOtp,
+    otpError,
+    verifyOtp,
+    generateOtp,
+    logout,
+  } = useAuth();
+
+  if (needsOtpVerification) {
+    if (isGeneratingOtp || !otpCode) {
+      return (
+        <LoadingSpinner
+          fullPage
+          text="Generating your secure OTP... / নিরাপদ OTP তৈরি হচ্ছে..."
+        />
+      );
+    }
+    return (
+      <OtpModal
+        otpCode={otpCode}
+        onVerify={verifyOtp}
+        onResend={generateOtp}
+        onLogout={logout}
+        isVerifying={isVerifyingOtp}
+        verifyError={otpError}
+      />
+    );
+  }
+
+  return <>{children}</>;
+}
 
 // Root route with Layout wrapper
 const rootRoute = createRootRoute({
   component: () => (
     <LanguageProvider>
       <CartProvider>
-        <Layout>
-          <Suspense fallback={<LoadingSpinner fullPage text="Loading..." />}>
-            <Outlet />
-          </Suspense>
-        </Layout>
+        <OtpGate>
+          <Layout>
+            <Suspense fallback={<LoadingSpinner fullPage text="Loading..." />}>
+              <Outlet />
+            </Suspense>
+          </Layout>
+        </OtpGate>
       </CartProvider>
     </LanguageProvider>
   ),
@@ -129,6 +171,32 @@ const downloadRoute = createRoute({
   component: DownloadPage,
 });
 
+const studyMaterialsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/study-materials",
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
+    department?: string;
+    year?: number;
+    semester?: number;
+    regulation?: string;
+    classTest?: string;
+    q?: string;
+  } => ({
+    department:
+      typeof search.department === "string" ? search.department : undefined,
+    year: typeof search.year === "number" ? search.year : undefined,
+    semester: typeof search.semester === "number" ? search.semester : undefined,
+    regulation:
+      typeof search.regulation === "string" ? search.regulation : undefined,
+    classTest:
+      typeof search.classTest === "string" ? search.classTest : undefined,
+    q: typeof search.q === "string" ? search.q : undefined,
+  }),
+  component: StudyMaterialsPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   shopRoute,
@@ -142,6 +210,7 @@ const routeTree = rootRoute.addChildren([
   adminRoute,
   checkoutRoute,
   downloadRoute,
+  studyMaterialsRoute,
 ]);
 
 const router = createRouter({ routeTree });

@@ -42,18 +42,10 @@ declare global {
   }
 }
 
-const CORRECT_PASSPHRASE = "jai mata swarasati";
+const CORRECT_PASSPHRASE = "a room without books is like a body without a soul";
 const SESSION_KEY = "vm-passphrase-unlocked";
 
-const ACCEPTED_PHRASES = [
-  "jai mata swarasati",
-  "jai mata saraswati",
-  "jai mata saraswathi",
-  "jai mata sarasoti",
-  "jai mata sarawati",
-  "jai maa swarasati",
-  "jai maa saraswati",
-];
+const ACCEPTED_PHRASES = ["a room without books is like a body without a soul"];
 
 function matchesPassphrase(transcript: string): boolean {
   const normalized = transcript.trim().toLowerCase().replace(/\s+/g, " ");
@@ -171,7 +163,7 @@ export function PassphraseGate({ onUnlock }: PassphraseGateProps) {
     const SpeechRecognitionCtor =
       window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognitionCtor();
-    recognition.lang = "hi-IN";
+    recognition.lang = "en-US";
     recognition.continuous = false;
     recognition.interimResults = true;
     recognitionRef.current = recognition;
@@ -606,7 +598,7 @@ export function PassphraseGate({ onUnlock }: PassphraseGateProps) {
                     letterSpacing: "0.03em",
                   }}
                 >
-                  Say: jai mata swarasati
+                  Say: A room without books is like a body without a soul
                 </p>
                 <p
                   style={{
@@ -616,7 +608,7 @@ export function PassphraseGate({ onUnlock }: PassphraseGateProps) {
                     marginTop: 2,
                   }}
                 >
-                  বলুন: জয় মাতা সরস্বতী
+                  বলুন: বই ছাড়া একটি ঘর আত্মা ছাড়া একটি শরীরের মতো
                 </p>
               </div>
             </div>

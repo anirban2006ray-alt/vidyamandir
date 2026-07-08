@@ -13,6 +13,7 @@ import type {
   CreateOrderInput,
   CreateProductInput,
   CreateReviewInput,
+  CreateStudyMaterialInput,
   Enquiry,
   EnquiryStatus,
   FlashSaleView,
@@ -24,7 +25,10 @@ import type {
   PromoCode,
   Question,
   Review,
+  StudyMaterial,
+  StudyMaterialFilter,
   UpdateProductInput,
+  UpdateStudyMaterialMetadataInput,
   UserProfile,
 } from "../backend.d.ts";
 import { getErrorMessage } from "../lib/utils";
@@ -1019,14 +1023,14 @@ export function useGetOrderedQuantityReport(
           const existing = map.get(key);
           if (existing) {
             existing.totalUnits += item.quantity;
-            existing.totalRevenue += item.priceInPaisa * item.quantity;
+            existing.totalRevenue += item.priceInPaisa * BigInt(item.quantity);
           } else {
             map.set(key, {
               productId: item.productId,
               titleEn: item.titleEn,
               genre: "—",
               totalUnits: item.quantity,
-              totalRevenue: item.priceInPaisa * item.quantity,
+              totalRevenue: item.priceInPaisa * BigInt(item.quantity),
             });
           }
         }
@@ -1188,5 +1192,118 @@ export function useCreateCheckoutSession() {
       if (!actor) throw new Error("Actor not available");
       return actor.createCheckoutSession(items, successUrl, cancelUrl);
     },
+  });
+}
+
+// ─── Study Materials ──────────────────────────────────────────────────────────
+
+export function useListStudyMaterials(
+  filter: StudyMaterialFilter | null = null,
+) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<StudyMaterial[]>({
+    queryKey: ["studyMaterials", filter],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listStudyMaterials(filter);
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useGetStudyMaterial(id: string | null) {
+  const { actor, isFetching } = useActor(createActor);
+  return useQuery<StudyMaterial | null>({
+    queryKey: ["studyMaterial", id],
+    queryFn: async () => {
+      if (!actor || !id) return null;
+      return actor.getStudyMaterial(id);
+    },
+    enabled: !!actor && !isFetching && id !== null,
+  });
+}
+
+export function useListAllStudyMaterials() {
+  const { actor, isFetching } = useActor(createActor);
+  const { isAuthenticated } = useInternetIdentity();
+  return useQuery<StudyMaterial[]>({
+    queryKey: ["allStudyMaterials"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listAllStudyMaterials();
+    },
+    enabled: !!actor && !isFetching && isAuthenticated,
+  });
+}
+
+export function useCreateStudyMaterial() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateStudyMaterialInput) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.createStudyMaterial(input);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["studyMaterials"] });
+      void qc.invalidateQueries({ queryKey: ["allStudyMaterials"] });
+    },
+  });
+}
+
+export function useUpdateStudyMaterialMetadata() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      input,
+    }: { id: string; input: UpdateStudyMaterialMetadataInput }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.updateStudyMaterialMetadata(id, input);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["studyMaterials"] });
+      void qc.invalidateQueries({ queryKey: ["allStudyMaterials"] });
+      void qc.invalidateQueries({ queryKey: ["studyMaterial"] });
+    },
+  });
+}
+
+export function useDeleteStudyMaterial() {
+  const { actor } = useActor(createActor);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.deleteStudyMaterial(id);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["studyMaterials"] });
+      void qc.invalidateQueries({ queryKey: ["allStudyMaterials"] });
+    },
+  });
+}
+
+export function useRecordStudyMaterialDownload() {
+  const { actor } = useActor(createActor);
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (!actor) return;
+      return actor.recordStudyMaterialDownload(id);
+    },
+  });
+}
+
+export function useGetStudyMaterialDownloadStats() {
+  const { actor, isFetching } = useActor(createActor);
+  const { isAuthenticated } = useInternetIdentity();
+  return useQuery<Array<[string, bigint]>>({
+    queryKey: ["studyMaterialDownloadStats"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getStudyMaterialDownloadStats();
+    },
+    enabled: !!actor && !isFetching && isAuthenticated,
   });
 }

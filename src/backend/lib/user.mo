@@ -4,8 +4,16 @@ import Common "../types/common";
 import UserTypes "../types/user";
 import OrderTypes "../types/order";
 import CatalogTypes "../types/catalog";
+import Time "mo:core/Time";
+import Int "mo:core/Int";
 
 module {
+  // ── OTP constants ────────────────────────────────────────────────────────
+  /// 10-minute TTL in nanoseconds
+  let OTP_TTL_NS : Int = 600_000_000_000;
+  /// Maximum failed verification attempts before the OTP is invalidated
+  let OTP_MAX_ATTEMPTS : Nat = 3;
+
   // ── Login rate-limit constants ─────────────────────────────────────────────
   /// 60-second window in nanoseconds
   let LOGIN_WINDOW_NS : Int = 60_000_000_000;
@@ -28,6 +36,96 @@ module {
   // ── 5-minute cache TTL: 300,000,000,000 nanoseconds ───────────────────────
   // Computed as: 5 * 60 * 1_000_000_000 = 300_000_000_000
   let CACHE_TTL_NS : Int = 300_000_000_000;
+
+  // ── OTP generation & verification ───────────────────────────────────────
+
+  /// Generate (or replace) a 6-digit OTP for the given principal.
+  /// Lazily removes any expired OTPs for the same key.
+  /// Returns the generated code so the caller can display it on-screen.
+  public func generateOtp(
+    otpStore : Map.Map<Text, UserTypes.OtpEntry>,
+    principal : Common.UserId,
+    now : Int,
+  ) : UserTypes.OtpResult {
+    if (principal.isAnonymous()) {
+      return #err("Anonymous principals cannot use OTP");
+    };
+    let key = principal.toText();
+    // Lazy cleanup of expired OTPs in the store (runs in O(N) but N is bounded by active users)
+    let expiredKeys = List.empty<Text>();
+    for ((k, entry) in otpStore.entries()) {
+      if (now > entry.expiresAt and not entry.used) {
+        expiredKeys.add(k);
+      };
+    };
+    expiredKeys.forEach(func(k) { otpStore.remove(k) });
+
+    // Derive a pseudo-random 6-digit code from Time + principal hash
+    let seed : Nat = Int.abs(now) % 1_000_000;
+    // Mix in principal text length for additional entropy
+    let extra : Nat = key.size() % 100;
+    let rawCode : Nat = (seed + extra * 9973) % 1_000_000;
+    // Zero-pad to 6 digits
+    let codeText = zeroPad6(rawCode);
+
+    let entry : UserTypes.OtpEntry = {
+      code = codeText;
+      createdAt = now;
+      expiresAt = now + OTP_TTL_NS;
+      attempts = 0;
+      used = false;
+    };
+    otpStore.add(key, entry);
+    #ok({ code = codeText });
+  };
+
+  /// Verify an OTP code for the given principal.
+  /// On success marks the OTP as used. On failure increments attempt counter.
+  public func verifyOtp(
+    otpStore : Map.Map<Text, UserTypes.OtpEntry>,
+    principal : Common.UserId,
+    code : Text,
+    now : Int,
+  ) : UserTypes.OtpVerifyResult {
+    let key = principal.toText();
+    switch (otpStore.get(key)) {
+      case null { #err(#expired) };  // no OTP exists — treat as expired
+      case (?entry) {
+        if (entry.used) {
+          return #err(#expired);
+        };
+        if (now > entry.expiresAt) {
+          otpStore.remove(key);
+          return #err(#expired);
+        };
+        if (entry.attempts >= OTP_MAX_ATTEMPTS) {
+          return #err(#tooManyAttempts);
+        };
+        if (entry.code == code) {
+          otpStore.add(key, { entry with used = true });
+          #ok;
+        } else {
+          let newAttempts = entry.attempts + 1;
+          otpStore.add(key, { entry with attempts = newAttempts });
+          let remaining = if (newAttempts >= OTP_MAX_ATTEMPTS) 0 else OTP_MAX_ATTEMPTS - newAttempts;
+          #err(#invalidOtp(remaining));
+        };
+      };
+    };
+  };
+
+  /// Zero-pad a Nat to exactly 6 decimal digits.
+  func zeroPad6(n : Nat) : Text {
+    let s = n.toText();
+    let len = s.size();
+    if (len >= 6) s
+    else {
+      var padded = s;
+      var i = len;
+      while (i < 6) { padded := "0" # padded; i += 1 };
+      padded;
+    };
+  };
 
   // ── Login rate-limiting ────────────────────────────────────────────────────
 

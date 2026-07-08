@@ -12,6 +12,22 @@ export interface TransformationOutput {
     body: Uint8Array;
     headers: Array<http_header>;
 }
+export type OtpVerifyResult = {
+    __kind__: "ok";
+    ok: null;
+} | {
+    __kind__: "err";
+    err: {
+        __kind__: "expired";
+        expired: null;
+    } | {
+        __kind__: "tooManyAttempts";
+        tooManyAttempts: null;
+    } | {
+        __kind__: "invalidOtp";
+        invalidOtp: bigint;
+    };
+};
 export interface StatusUpdate {
     status: OrderStatus;
     note: string;
@@ -25,6 +41,19 @@ export interface AdminAnalytics {
     bestsellers: Array<[ProductId, bigint]>;
     totalUsers: bigint;
     totalRevenueInPaisa: bigint;
+}
+export interface StudyMaterial {
+    id: string;
+    semester: bigint;
+    subjectCode: string;
+    subjectName: string;
+    regulation: string;
+    blobRef: string;
+    year: bigint;
+    department: string;
+    classTest: string;
+    uploadedAt: Timestamp;
+    uploadedBy: Principal;
 }
 export interface CreateOrderInput {
     idempotencyKey?: string;
@@ -279,6 +308,23 @@ export interface UpdateProductInput {
     genre?: Genre;
     publicationDate?: Timestamp;
 }
+export type OtpResult = {
+    __kind__: "ok";
+    ok: {
+        code: string;
+    };
+} | {
+    __kind__: "err";
+    err: string;
+};
+export interface StudyMaterialFilter {
+    semester?: bigint;
+    subjectCode?: string;
+    regulation?: string;
+    year?: bigint;
+    department?: string;
+    classTest?: string;
+}
 export type AddressId = bigint;
 export interface TransformationInput {
     context: Uint8Array;
@@ -312,6 +358,16 @@ export interface FlashSaleView {
     titleBn: string;
     titleEn: string;
 }
+export interface CreateStudyMaterialInput {
+    semester: bigint;
+    subjectCode: string;
+    subjectName: string;
+    regulation: string;
+    blobRef: string;
+    year: bigint;
+    department: string;
+    classTest: string;
+}
 export interface BulkImportResult {
     skipped: bigint;
     errors: Array<[bigint, string]>;
@@ -340,6 +396,15 @@ export interface ProductFilter {
     maxPriceInPaisa?: bigint;
 }
 export type AnswerId = bigint;
+export interface UpdateStudyMaterialMetadataInput {
+    semester?: bigint;
+    subjectCode?: string;
+    subjectName?: string;
+    regulation?: string;
+    year?: bigint;
+    department?: string;
+    classTest?: string;
+}
 export interface ProductView {
     id: ProductId;
     coverImageUrl: string;
@@ -508,6 +573,13 @@ export interface backendInterface {
         __kind__: "err";
         err: AppError;
     }>;
+    createStudyMaterial(input: CreateStudyMaterialInput): Promise<{
+        __kind__: "ok";
+        ok: StudyMaterial;
+    } | {
+        __kind__: "err";
+        err: AppError;
+    }>;
     deactivateFlashSale(id: FlashSaleId): Promise<boolean>;
     deactivatePromoCode(code: string): Promise<boolean>;
     deleteAddress(addressId: AddressId): Promise<boolean>;
@@ -520,7 +592,9 @@ export interface backendInterface {
         err: AppError;
     }>;
     deleteProduct(id: ProductId): Promise<boolean>;
+    deleteStudyMaterial(id: string): Promise<boolean>;
     downloadInvoice(orderId: OrderId): Promise<string>;
+    generateOtp(): Promise<OtpResult>;
     getAdminAnalytics(): Promise<AdminAnalytics>;
     getAnalyticsEvents(offset: bigint, limit: bigint): Promise<Array<AnalyticsEvent>>;
     getBestsellers(): Promise<Array<ProductView>>;
@@ -539,6 +613,8 @@ export interface backendInterface {
     getRecentlyViewed(): Promise<Array<ProductView>>;
     getReview(id: ReviewId): Promise<Review | null>;
     getStripeSessionStatus(sessionId: string): Promise<StripeSessionStatus>;
+    getStudyMaterial(id: string): Promise<StudyMaterial | null>;
+    getStudyMaterialDownloadStats(): Promise<Array<[string, bigint]>>;
     getTopProducts(limit: bigint): Promise<Array<ProductView>>;
     getUserProfile(user: UserId): Promise<UserProfile | null>;
     getWishlist(): Promise<Array<ProductId>>;
@@ -551,6 +627,7 @@ export interface backendInterface {
     listAllReturns(): Promise<Array<Order>>;
     listAllReviews(): Promise<Array<AdminReviewView>>;
     listAllReviewsPaged(offset: bigint, limit: bigint): Promise<PagedResult>;
+    listAllStudyMaterials(): Promise<Array<StudyMaterial>>;
     listAnswers(questionId: QuestionId): Promise<Array<Answer>>;
     listFlashSales(activeOnly: boolean): Promise<Array<FlashSaleView>>;
     listMyOrders(): Promise<Array<Order>>;
@@ -560,6 +637,7 @@ export interface backendInterface {
     listQuestions(productId: ProductId): Promise<Array<Question>>;
     listReviews(productId: ProductId): Promise<Array<Review>>;
     listReviewsSorted(productId: ProductId, sortMode: Variant_helpfulness_recency_rating): Promise<Array<Review>>;
+    listStudyMaterials(filter: StudyMaterialFilter | null): Promise<Array<StudyMaterial>>;
     ping(): Promise<boolean>;
     postAnswer(questionId: QuestionId, answerText: string): Promise<{
         __kind__: "ok";
@@ -575,6 +653,7 @@ export interface backendInterface {
     }>;
     recordDownload(platform: string): Promise<void>;
     recordRecentlyViewed(productId: ProductId): Promise<void>;
+    recordStudyMaterialDownload(id: string): Promise<void>;
     refreshBestsellersCache(): Promise<bigint>;
     removeFromCart(productId: ProductId): Promise<void>;
     removeFromWishlist(productId: ProductId): Promise<void>;
@@ -644,7 +723,15 @@ export interface backendInterface {
         err: AppError;
     }>;
     updateStock(id: ProductId, delta: bigint): Promise<boolean>;
+    updateStudyMaterialMetadata(id: string, input: UpdateStudyMaterialMetadataInput): Promise<{
+        __kind__: "ok";
+        ok: StudyMaterial;
+    } | {
+        __kind__: "err";
+        err: AppError;
+    }>;
     validatePromoCode(code: string): Promise<PromoCode | null>;
+    verifyOtp(code: string): Promise<OtpVerifyResult>;
     voteAnswerHelpful(answerId: AnswerId): Promise<{
         __kind__: "ok";
         ok: boolean;

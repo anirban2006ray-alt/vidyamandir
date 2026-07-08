@@ -21,7 +21,31 @@ mixin (
   lastLoginMap : Map.Map<Common.UserId, Int>,
   rateLimitMap : Map.Map<Text, Common.RateLimitEntry>,
   orderIdempotencyKeys : Map.Map<Text, Common.IdempotencyEntry>,
+  otpStore : Map.Map<Text, UserTypes.OtpEntry>,
 ) {
+  // ── OTP ─────────────────────────────────────────────────────────────────
+
+  /// Generate a 6-digit OTP for the caller and return it on-screen.
+  /// Replaces any existing unexpired OTP for the same principal (supports Resend).
+  /// OTP is displayed to the user directly — no email/SMS delivery.
+  public shared ({ caller }) func generateOtp() : async UserTypes.OtpResult {
+    if (caller.isAnonymous()) {
+      return #err("You must be logged in to generate an OTP");
+    };
+    let now = Time.now();
+    UserLib.generateOtp(otpStore, caller, now);
+  };
+
+  /// Verify the OTP code the user typed on-screen.
+  /// Returns #ok on success, #err variant on failure with remaining attempt count.
+  public shared ({ caller }) func verifyOtp(code : Text) : async UserTypes.OtpVerifyResult {
+    if (caller.isAnonymous()) {
+      return #err(#expired);
+    };
+    let now = Time.now();
+    UserLib.verifyOtp(otpStore, caller, code, now);
+  };
+
   // ── Health check ─────────────────────────────────────────────────────────
 
   /// Lightweight liveness probe — returns true when the canister is reachable.
@@ -110,7 +134,7 @@ mixin (
       case null [];
     };
     let rawProducts = UserLib.getTopProducts(bestsellers, products, limit);
-    rawProducts.map<CatalogTypes.Product, CatalogTypes.ProductView>(CatalogLib.toView);
+    rawProducts.map(CatalogLib.toView);
   };
 
   // ── Login status query ────────────────────────────────────────────────────

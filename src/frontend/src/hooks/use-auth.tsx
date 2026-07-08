@@ -1,7 +1,7 @@
 import { useInternetIdentity } from "@caffeineai/core-infrastructure";
 import { useActor } from "@caffeineai/core-infrastructure";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createActor } from "../backend";
 import type { UserProfile, UserRole } from "../backend.d.ts";
 
@@ -14,12 +14,127 @@ export function useAuth() {
     isLoggingIn,
     identity,
   } = useInternetIdentity();
+  const { actor, isFetching: actorFetching } = useActor(createActor);
   const queryClient = useQueryClient();
 
   // Local error state — tracks the last login failure message
   const [loginError, setLoginError] = useState<string | null>(null);
+  // OTP state
+  const [otpCode, setOtpCode] = useState<string | null>(null);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [isGeneratingOtp, setIsGeneratingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const otpGeneratedForSession = useRef(false);
   // Ref guard to prevent double-invocation during concurrent renders
   const loginInProgressRef = useRef(false);
+
+  // Auto-generate OTP after II authentication
+  useEffect(() => {
+    if (
+      isAuthenticated &&
+      !otpVerified &&
+      !otpCode &&
+      !isGeneratingOtp &&
+      !otpGeneratedForSession.current &&
+      actor &&
+      !actorFetching
+    ) {
+      otpGeneratedForSession.current = true;
+      setIsGeneratingOtp(true);
+      actor
+        .generateOtp()
+        .then((result) => {
+          if (result.__kind__ === "ok") {
+            setOtpCode(result.ok.code);
+          } else {
+            setOtpError("Failed to generate OTP. Please try signing in again.");
+          }
+        })
+        .catch(() => {
+          setOtpError("Network error generating OTP. Please try again.");
+        })
+        .finally(() => {
+          setIsGeneratingOtp(false);
+        });
+    }
+  }, [
+    isAuthenticated,
+    otpVerified,
+    otpCode,
+    isGeneratingOtp,
+    actor,
+    actorFetching,
+  ]);
+
+  // Reset OTP state when user logs out
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setOtpCode(null);
+      setOtpVerified(false);
+      setOtpError(null);
+      otpGeneratedForSession.current = false;
+    }
+  }, [isAuthenticated]);
+
+  const generateOtp = useCallback(async () => {
+    if (!actor) return;
+    setIsGeneratingOtp(true);
+    setOtpError(null);
+    try {
+      const result = await actor.generateOtp();
+      if (result.__kind__ === "ok") {
+        setOtpCode(result.ok.code);
+      } else {
+        setOtpError("Failed to generate OTP. Please try again.");
+      }
+    } catch {
+      setOtpError("Network error. Please try again.");
+    } finally {
+      setIsGeneratingOtp(false);
+    }
+  }, [actor]);
+
+  const verifyOtp = useCallback(
+    async (code: string) => {
+      if (!actor) return;
+      setIsVerifyingOtp(true);
+      setOtpError(null);
+      try {
+        const result = await actor.verifyOtp(code);
+        if (result.__kind__ === "ok") {
+          setOtpVerified(true);
+          setOtpCode(null);
+        } else if (result.__kind__ === "err") {
+          const err = result.err;
+          if (err.__kind__ === "invalidOtp") {
+            const remaining = Number(err.invalidOtp);
+            setOtpError(
+              `Invalid OTP. ${remaining} attempt${remaining === 1 ? "" : "s"} remaining. / ভুল OTP। ${remaining}টি চেষ্টা বাকি।`,
+            );
+          } else if (err.__kind__ === "expired") {
+            setOtpError(
+              "OTP expired. Please log in again. / OTP মেয়াদ শেষ। আবার লগইন করুন।",
+            );
+            // Force logout
+            clear();
+            queryClient.clear();
+          } else if (err.__kind__ === "tooManyAttempts") {
+            setOtpError(
+              "Too many failed attempts. Please log in again. / অনেকবার ভুল হয়েছে। আবার লগইন করুন।",
+            );
+            clear();
+            queryClient.clear();
+          }
+        }
+      } catch {
+        setOtpError("Network error verifying OTP. Please try again.");
+      } finally {
+        setIsVerifyingOtp(false);
+      }
+    },
+    [actor, clear, queryClient],
+  );
 
   const handleLogin = async () => {
     if (isAuthenticated || loginInProgressRef.current) return;
@@ -38,6 +153,10 @@ export function useAuth() {
 
   const handleLogout = () => {
     setLoginError(null);
+    setOtpCode(null);
+    setOtpVerified(false);
+    setOtpError(null);
+    otpGeneratedForSession.current = false;
     clear();
     queryClient.clear();
   };
@@ -53,6 +172,16 @@ export function useAuth() {
     clearLoginError,
     login: handleLogin,
     logout: handleLogout,
+    // OTP
+    otpCode,
+    otpVerified,
+    isGeneratingOtp,
+    isVerifyingOtp,
+    otpError,
+    generateOtp,
+    verifyOtp,
+    /** True when OTP gate should be shown — authenticated but not yet verified */
+    needsOtpVerification: isAuthenticated && !otpVerified,
   };
 }
 
